@@ -37,9 +37,9 @@ mvn clean install
 Add the core dependency to your project's `pom.xml`:
 ```xml
 <dependency>
-    <groupId>com.bedrock</groupId>
+    <groupId>io.github.ronerjr</groupId>
     <artifactId>bedrock-core</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
