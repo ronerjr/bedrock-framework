@@ -15,6 +15,11 @@
     <name>Bedrock Java Example</name>
     <description>Aplicação de exemplo utilizando o Bedrock Java Core.</description>
 
+    <properties>
+        <!-- Impede que esse módulo de exemplo seja publicado no Maven Central -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <!-- Consumindo o framework compilado -->
         <dependency>
