@@ -4,13 +4,36 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.bedrock</groupId>
+    <groupId>io.github.ronerjr</groupId>
     <artifactId>bedrock-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Bedrock Java Parent</name>
     <description>Projeto root gerenciador dos módulos do Bedrock Framework</description>
+    <url>https://github.com/ronerjr/bedrock-framework</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Roner Damaso Junior</name>
+            <email>ronerjr@gmail.com</email>
+            <organization>Bedrock Java</organization>
+            <organizationUrl>https://github.com/ronerjr</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/ronerjr/bedrock-framework.git</connection>
+        <developerConnection>scm:git:ssh://github.com:ronerjr/bedrock-framework.git</developerConnection>
+        <url>http://github.com/ronerjr/bedrock-framework/tree/main</url>
+    </scm>
 
     <modules>
         <module>bedrock-core</module>
@@ -28,7 +51,7 @@
         <dependencies>
             <!-- Dependência interna do framework -->
             <dependency>
-                <groupId>com.bedrock</groupId>
+                <groupId>io.github.ronerjr</groupId>
                 <artifactId>bedrock-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -105,4 +128,41 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- [Maven Central] Assinatura Criptográfica GPG -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    
+                    <!-- [Maven Central] Novo Portal de Publicação (Sonatype Central) -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.4.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <tokenAuth>true</tokenAuth>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
