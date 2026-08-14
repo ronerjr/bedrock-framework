@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bedrock Java 🦖 - Educational Framework</title>
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-surface: #1e293b;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        nav {
+            padding: 1.5rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo span { color: var(--accent); }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        section {
+            padding: 5rem 5%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 8rem 5% 5rem;
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-surface);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Simulator */
+        .simulator {
+            background: var(--bg-surface);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin: 4rem auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .sim-header {
+            background: #0f172a;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot.r { background: #ef4444; }
+        .dot.y { background: #f59e0b; }
+        .dot.g { background: #10b981; }
+
+        .sim-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 350px;
+        }
+
+        @media (max-width: 768px) {
+            .sim-body { grid-template-columns: 1fr; }
+        }
+
+        .console, .response {
+            padding: 1.5rem;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            overflow-y: auto;
+        }
+
+        .console {
+            background: #000;
+            color: #a7f3d0;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .response {
+            background: #1e1e1e;
+            color: #d1d5db;
+        }
+
+        .log-line {
+            margin-bottom: 0.5rem;
+            opacity: 0;
+        }
+
+        .log-info { color: #60a5fa; }
+        .log-success { color: #34d399; }
+        
+        pre.json {
+            color: #eab308;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        /* Getting Started */
+        .getting-started {
+            text-align: center;
+            padding-bottom: 8rem;
+        }
+        
+        .steps {
+            text-align: left;
+            max-width: 800px;
+            margin: 3rem auto 0;
+            background: var(--bg-surface);
+            padding: 2.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .step {
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .step-num {
+            background: var(--accent);
+            color: #000;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        code {
+            background: #0f172a;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: #38bdf8;
+            font-family: monospace;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">🦖 Bedrock <span>Java</span></div>
+        <a href="https://github.com/roner/bedrock-framework" target="_blank" class="btn">GitHub</a>
+    </nav>
+
+    <section class="hero">
+        <h1>The foundation of<br>modern architecture</h1>
+        <p>Learn to walk on the JVM before piloting spaceships like Spring and Quarkus. No magic, zero dependencies, pure Java 21.</p>
+        <button class="btn" style="font-size: 1.1rem; padding: 1rem 2rem;" onclick="document.getElementById('simulator').scrollIntoView({behavior: 'smooth'})">Try the Simulator</button>
+    </section>
+
+    <section>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Java 21 & Virtual Threads</h3>
+                <p>Abandon reactive complexity. Bedrock uses the native HttpServer configured with Virtual Threads for ultra-high concurrency without OS blocking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🪞</div>
+                <h3>Reflection without Magic</h3>
+                <p>Our custom IoC engine resolves dependencies recursively using Constructor Injection, enforcing immutability and preventing circular dependencies.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Zero Dependencies</h3>
+                <p>No external libraries at runtime! We built a native JSON serializer via Reflection with first-class support for Java Records and Collections.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="simulator">
+        <h2 style="text-align: center; font-size: 2.5rem; margin-bottom: 1rem;">Interactive Simulator</h2>
+        <p style="text-align: center; color: var(--text-muted);">Simulate a GET request to <code style="color:var(--accent)">/api/users/1</code> and watch the engine operate.</p>
+        
+        <div class="simulator">
+            <div class="sim-header">
+                <div class="window-controls">
+                    <div class="dot r"></div>
+                    <div class="dot y"></div>
+                    <div class="dot g"></div>
+                </div>
+                <button class="btn" id="runBtn" onclick="runSimulation()" style="padding: 0.4rem 1rem; font-size: 0.9rem;">▶️ Execute Test Request</button>
+            </div>
+            <div class="sim-body">
+                <div class="console" id="consoleOutput">
+                    <div style="color: #666; margin-bottom: 1rem;">// Bedrock Server Console</div>
+                </div>
+                <div class="response">
+                    <div style="color: #666; margin-bottom: 1rem;">// HTTP Client Response</div>
+                    <div id="httpStatus" style="margin-bottom: 1rem; display: none;">
+                        <span style="background: #10b981; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">200 OK</span>
+                        <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 10px;">application/json</span>
+                    </div>
+                    <div id="httpHeaders" style="margin-bottom: 1rem; display: none;">
+                        <span style="color: #38bdf8; font-size: 0.8rem;">X-Powered-By:</span> <span style="color: #e2e8f0; font-size: 0.8rem;">Bedrock-Java-21</span>
+                    </div>
+                    <pre class="json" id="jsonResponse"></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="getting-started">
+        <h2 style="font-size: 2.5rem;">Getting Started</h2>
+        <p style="color: var(--text-muted); margin-top: 1rem;">Run Bedrock Java locally.</p>
+        
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div>
+                    <h4 style="font-size: 1.1rem; margin-bottom: 0.3rem;">Clone or download the project</h4>
+                    <p style="color: var(--text-muted);">Make sure you have JDK 21+ installed on your machine.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div>
+                    <h4 style="font-size: 1.1rem; margin-bottom: 0.3rem;">Import the project</h4>
+                    <p style="color: var(--text-muted);">The project uses Maven. Just import the <code>pom.xml</code> file.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div>
+                    <h4 style="font-size: 1.1rem; margin-bottom: 0.3rem;">Execute the application</h4>
+                    <p style="color: var(--text-muted);">Run the <code>com.bedrock.example.Application</code> class from your IDE.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div>
+                    <h4 style="font-size: 1.1rem; margin-bottom: 0.3rem;">Access the Bedrock Playground</h4>
+                    <p style="color: var(--text-muted);">Open your browser at <code>http://localhost:8080/bedrock/ui</code> to test the API and see all active routes graphically.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>🦖 Bedrock Java - Built to simplify and demystify the JVM backend world.</p>
+    </footer>
+
+    <script>
+        const logs = [
+            "<span class='log-info'>[BEDROCK-IOC]</span> 🦴 Mapped: 'UserService' in the bedrock",
+            "<span class='log-info'>[BEDROCK-IOC]</span> 🦴 Mapped: 'UserController' in the bedrock",
+            "<span class='log-success'>[BEDROCK-ROUTER]</span> 🦴 Route registered: GET /api/users/{id}",
+            "<span class='log-success'>[BEDROCK-ROUTER]</span> 🛡️ Middleware registered",
+            "<span style='color:#eab308'>[BEDROCK-APP]</span> 🚀 Server running at full speed on Virtual Threads!",
+            "<span style='color:#666'>--- Waiting for requests ---</span>",
+            "<span class='log-info'>[LOG]</span> 🪵 New Request intercepted at path: /api/users/1",
+        ];
+
+        const jsonResult = {
+            "id": "1",
+            "name": "Ada Lovelace",
+            "level": "JVM Expert"
+        };
+
+        async function runSimulation() {
+            const btn = document.getElementById('runBtn');
+            const consoleOut = document.getElementById('consoleOutput');
+            const responseOut = document.getElementById('jsonResponse');
+            const statusOut = document.getElementById('httpStatus');
+            const headersOut = document.getElementById('httpHeaders');
+            
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.textContent = "Executing...";
+            
+            // Reset
+            consoleOut.innerHTML = '<div style="color: #666; margin-bottom: 1rem;">// Bedrock Server Console</div>';
+            responseOut.innerHTML = '';
+            statusOut.style.display = 'none';
+            headersOut.style.display = 'none';
+
+            // Simulate server boot logs
+            for (let i = 0; i < logs.length; i++) {
+                await sleep(400 + Math.random() * 200);
+                const div = document.createElement('div');
+                div.className = 'log-line';
+                div.innerHTML = logs[i];
+                consoleOut.appendChild(div);
+                
+                // Fade in animation
+                setTimeout(() => {
+                    div.style.transition = 'opacity 0.3s ease';
+                    div.style.opacity = '1';
+                }, 50);
+                consoleOut.scrollTop = consoleOut.scrollHeight;
+            }
+
+            // Simulate small processing network delay
+            await sleep(600);
+
+            // Display JSON Result
+            statusOut.style.display = 'block';
+            headersOut.style.display = 'block'; // AfterMiddleware demo
+            
+            // Typing effect for JSON
+            const jsonStr = JSON.stringify(jsonResult, null, 2);
+            for (let i = 0; i <= jsonStr.length; i++) {
+                responseOut.textContent = jsonStr.substring(0, i);
+                if (i % 2 === 0) await sleep(10);
+            }
+
+            btn.disabled = false;
+            btn.textContent = "▶️ Execute Again";
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
