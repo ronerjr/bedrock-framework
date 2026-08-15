@@ -30,10 +30,26 @@ Nossa evolução é dividida em *Milestones* claros, focados em melhorar a arqui
 ## 🔮 Futuro (V3.0+) - *The "Persistence & Security" Vision*
 *Ideias de longo prazo para tornar o Bedrock viável para mini-projetos monolíticos de ponta a ponta.*
 
-- [ ] **Bedrock Data (ORM Minimalista):** Um wrapper educacional por cima da API JDBC nativa do Java, fornecendo um modelo de `ActiveRecord` ou `Repository` simples sem a complexidade de um Hibernate.
-- [ ] **Security Pipeline Integrado:** Filtros nativos para JWT (JSON Web Tokens) parsing and validation, proteção contra CSRF e rate-limiting (Throttling) utilizando tokens-bucket em memória.
+- [ ] **Bedrock Data (ORM Minimalista):** Um wrapper educacional por cima da API JDBC nativa do Java.
+  - *Conceito Ensinado:* O padrão de projeto `ActiveRecord` e o funcionamento interno de Drivers SQL e Connection Pools.
+- [ ] **Security Pipeline Integrado:** Filtros nativos para JWT parsing.
+  - *Conceito Ensinado:* Criptografia simétrica/assimétrica nativa do Java (`java.security`), Hashing Seguro e RFC 7519.
+
+---
+
+## 🎓 V4.0 - *Advanced Engineering Concepts*
+*Para ir além do básico web e dominar os conceitos mais complexos (e assustadores) da JVM.*
+
+- [ ] **Programação Orientada a Aspectos (AOP):** Introduzir suporte a anotações como `@BedrockTransactional` ou `@BedrockAsync`.
+  - *Conceito Ensinado:* Uso de `java.lang.reflect.Proxy` (Dynamic Proxies) para interceptar chamadas de métodos em tempo de execução — desmistificando como a maior "mágica" do Spring Boot funciona.
+- [ ] **Rate Limiter Nativo:** Controle de abusos (ex: máximo de 10 requests por segundo por IP).
+  - *Conceito Ensinado:* Primitivas avançadas de concorrência do Java `java.util.concurrent` (como `Semaphore`, `ReentrantLock` e o algoritmo de Token Bucket).
+- [ ] **Event Bus (Pub/Sub Interno):** Sistema de disparo de eventos assíncronos dentro da aplicação (ex: `app.publish(new UserCreatedEvent())`).
+  - *Conceito Ensinado:* O Design Pattern `Observer` acoplado ao poder de roteamento de filas em Virtual Threads.
+- [ ] **Bedrock Telemetry:** Um endpoint embutido `/bedrock/metrics` que expõe a saúde do servidor.
+  - *Conceito Ensinado:* Uso da API de `java.lang.management` (JMX) para ler o uso de Heap Memory, Garbage Collection e quantidade de Virtual Threads ativas em tempo real.
 
 ---
 
 ### Como contribuir?
-Se você tem interesse em aprender como a JVM funciona por baixo dos panos, escolha uma das *Issues* do nosso Roadmap, faça um *Fork*, e submeta seu PR! O aprendizado é garantido.
+Se você tem interesse em aprender como a JVM funciona por baixo dos panos, escolha uma das *Issues* do nosso Roadmap, entenda qual *Conceito de Engenharia* ela propõe ensinar, faça um *Fork*, e submeta seu PR! O aprendizado é garantido.
