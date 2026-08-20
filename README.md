@@ -68,10 +68,26 @@ public class UserController {
         this.userService = userService;
     }
 
+    @BedrockGet("/api/users")
+    public List<UserResponse> listUsers() {
+        return userService.findAll();
+    }
+
     @BedrockGet("/api/users/{id}")
     public void getUser(Context ctx) {
         String id = ctx.pathParam("id");
-        ctx.ok(userService.findById(id));
+        UserResponse user = userService.findById(id);
+        if (user != null) {
+            ctx.ok(user);
+        } else {
+            ctx.notFound("User not found with id: " + id);
+        }
+    }
+
+    // Automatic JSON deserialization into Java Records & 201 Created by default!
+    @BedrockPost("/api/users")
+    public UserResponse createUser(CreateUserRequest req) {
+        return userService.create(req);
     }
 }
 ```
@@ -82,6 +98,8 @@ public class Application {
     public static void main(String[] args) {
         BedrockApp.create(8080)
             .before(ctx -> BedrockLogger.info("HTTP", "Incoming request: " + ctx.path()))
+            .after(ctx -> ctx.setHeader("X-Powered-By", "Bedrock-Java-21"))
+            .get("/api/ping", ctx -> ctx.ok("pong"))
             .bindControllers(UserService.class, UserController.class)
             .start();
     }
@@ -94,16 +112,22 @@ Run your `Application` main method from your IDE or via terminal. Bedrock will b
 Visit the built-in Developer Experience UI on your browser:
 🔗 **http://localhost:8080/bedrock/ui**
 
-There, you can inspect all your registered routes and send test HTTP requests seamlessly!
+There, you can inspect all your registered routes (GET, POST, PUT, DELETE) and send test HTTP requests with JSON payloads seamlessly!
 
 ### 5. See it in Action (The Request Lifecycle)
 When you run the application and make a GET request to `/api/users/1`, here is the beautiful output you will see in your terminal. Notice how the IoC maps the beans, the Router registers the paths, and the `Before Middleware` intercepts the request:
 
 ```text
+[INFO] [ROUTER] Route registered: GET /bedrock/ui
+[INFO] [ROUTER] Route registered: GET /bedrock/api/routes
 [INFO] [ROUTER] Route registered: GET /api/ping
 [INFO] [BEDROCK-IOC] Mapped bean: 'UserService'
 [INFO] [BEDROCK-IOC] Mapped bean: 'UserController'
+[INFO] [ROUTER] Route registered: GET /api/users
 [INFO] [ROUTER] Route registered: GET /api/users/{id}
+[INFO] [ROUTER] Route registered: POST /api/users
+[INFO] [ROUTER] Route registered: PUT /api/users/{id}
+[INFO] [ROUTER] Route registered: DELETE /api/users/{id}
  ____           _                _
 |  _ \         | |              | |
 | |_) | ___  __| |_ __ ___   ___| | __
@@ -141,6 +165,12 @@ The IoC (`BedrockContainer`) resolves dependencies recursively using Constructor
 ### 🛡️ State/Buffer Pattern & AfterMiddlewares
 The HTTP `Context` does not write directly to the network when you call `ctx.ok()`. It buffers the state. This allows powerful `AfterMiddlewares` to intercept the response and inject global headers (like CORS or `X-Powered-By`) right before flushing the bytes to the client.
 
+### 📦 Pure Java 21 JSON Engine (`BedrockJson`)
+No Jackson, no Gson. Bedrock features a handcrafted **Recursive Descent JSON Parser** and Serializer built purely with Java 21 components. It maps JSON directly to modern **Java Records** (using canonical constructors) and classic POJOs via reflection.
+
+### 🌐 Multi-Verb REST Routing & Auto DTO Binding
+Support for `@BedrockGet`, `@BedrockPost`, `@BedrockPut`, `@BedrockDelete`, and `@BedrockPatch`. Controller methods can either receive `Context ctx` or declare the request DTO directly as a parameter for automatic JSON body deserialization.
+
 ### 🧵 Pure Virtual Threads (Project Loom)
 No thread pools, no OS blocking. The internal HTTP server (`com.sun.net.httpserver.HttpServer`) is natively coupled with `Executors.newVirtualThreadPerTaskExecutor()`. Every request gets its own featherweight Virtual Thread.
 
@@ -162,3 +192,4 @@ Ensure that 'UserService' is passed to app.bindControllers(...)
 
 ## 🤝 Contributing
 Want to help build the best educational framework in the world? Read our [CONTRIBUTING.md](CONTRIBUTING.md) guide!
+
