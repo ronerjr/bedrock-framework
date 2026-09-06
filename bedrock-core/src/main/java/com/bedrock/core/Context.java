@@ -5,9 +5,6 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.RecordComponent;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +17,7 @@ import java.util.Map;
  * providing expressive methods to read data and send responses.
  * 
  * DESIGN PATTERN: State / Buffer (Front Controller pattern)
- * Methods like ok(), notFound() do NOT write to the network immediately.
+ * Methods like ok(), created(), notFound() do NOT write to the network immediately.
  * They merely mutate the internal state (buffering the response intention).
  * This allows AfterMiddlewares to modify headers before the final flush() writes to the stream.
  */
@@ -49,6 +46,13 @@ public class Context {
         }
     }
 
+    /**
+     * Parses the request body JSON into a strongly-typed Java Record or POJO.
+     */
+    public <T> T bodyAs(Class<T> clazz) {
+        return BedrockJson.fromJson(body(), clazz);
+    }
+
     public String queryParam(String name) {
         String query = exchange.getRequestURI().getQuery();
         if (query == null) return null;
@@ -70,8 +74,28 @@ public class Context {
         return exchange.getRequestURI().getPath();
     }
 
+    public String method() {
+        return exchange.getRequestMethod();
+    }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public Object getResponseBody() {
+        return responseBody;
+    }
+
     // --- Response Buffer Mutators ---
     
+    /**
+     * Sets the HTTP status code explicitly.
+     */
+    public Context status(int code) {
+        this.statusCode = code;
+        return this;
+    }
+
     /**
      * Adds a custom header to the HTTP response.
      */
@@ -88,6 +112,12 @@ public class Context {
     public void created(Object body) {
         this.statusCode = 201;
         this.responseBody = body;
+        this.contentType = "application/json";
+    }
+
+    public void noContent() {
+        this.statusCode = 204;
+        this.responseBody = null;
         this.contentType = "application/json";
     }
 
@@ -120,7 +150,7 @@ public class Context {
             if ("text/html".equals(contentType)) {
                 responseContent = (String) responseBody;
             } else {
-                responseContent = toJson(responseBody);
+                responseContent = BedrockJson.toJson(responseBody);
             }
         }
         
@@ -130,88 +160,15 @@ public class Context {
         exchange.getResponseHeaders().set("Content-Type", contentType + "; charset=UTF-8");
         responseHeaders.forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
         
-        // Write status and body
-        exchange.sendResponseHeaders(statusCode, bytes.length == 0 ? -1 : bytes.length);
-        
-        if (bytes.length > 0) {
+        // 204 No Content should pass -1 for content-length according to RFC
+        if (statusCode == 204 || bytes.length == 0) {
+            exchange.sendResponseHeaders(statusCode, -1);
+        } else {
+            exchange.sendResponseHeaders(statusCode, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(bytes);
             }
         }
         exchange.close();
-    }
-
-    // --- Minimalist JSON Serializer based on Reflection ---
-    
-    private String toJson(Object obj) {
-        if (obj == null) return "null";
-        
-        if (obj instanceof String str) {
-            return "\"" + str.replace("\"", "\\\"").replace("\n", "\\n") + "\"";
-        }
-        
-        if (obj instanceof Number || obj instanceof Boolean) {
-            return obj.toString();
-        }
-        
-        if (obj instanceof Map<?, ?> map) {
-            StringBuilder sb = new StringBuilder("{");
-            boolean first = true;
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (!first) sb.append(",");
-                sb.append("\"").append(entry.getKey()).append("\":").append(toJson(entry.getValue()));
-                first = false;
-            }
-            return sb.append("}").toString();
-        }
-        
-        if (obj instanceof Iterable<?> iter) {
-            StringBuilder sb = new StringBuilder("[");
-            boolean first = true;
-            for (Object item : iter) {
-                if (!first) sb.append(",");
-                sb.append(toJson(item));
-                first = false;
-            }
-            return sb.append("]").toString();
-        }
-
-        Class<?> clazz = obj.getClass();
-        
-        // 🚀 Native and optimized support for Java Records
-        if (clazz.isRecord()) {
-            StringBuilder sb = new StringBuilder("{");
-            boolean first = true;
-            for (RecordComponent component : clazz.getRecordComponents()) {
-                if (!first) sb.append(",");
-                try {
-                    Object val = component.getAccessor().invoke(obj);
-                    sb.append("\"").append(component.getName()).append("\":").append(toJson(val));
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to serialize Record: " + clazz.getSimpleName(), e);
-                }
-                first = false;
-            }
-            return sb.append("}").toString();
-        }
-
-        // Support for classic POJOs (regular classes)
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Field field : clazz.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
-                continue;
-            }
-            field.setAccessible(true); // Breaking encapsulation for reading
-            if (!first) sb.append(",");
-            try {
-                Object val = field.get(obj);
-                sb.append("\"").append(field.getName()).append("\":").append(toJson(val));
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to serialize POJO: " + clazz.getSimpleName(), e);
-            }
-            first = false;
-        }
-        return sb.append("}").toString();
     }
 }

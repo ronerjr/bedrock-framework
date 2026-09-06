@@ -2,6 +2,12 @@ package com.bedrock.example;
 
 import com.bedrock.ioc.BedrockComponent;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * 🎓 BEDROCK TUTORIAL: The Service Layer (Business Logic)
  * 
@@ -12,13 +18,40 @@ import com.bedrock.ioc.BedrockComponent;
 @BedrockComponent
 public class UserService {
 
+    private final Map<String, UserResponse> database = new ConcurrentHashMap<>();
+    private final AtomicLong idSequence = new AtomicLong(2);
+
+    public UserService() {
+        // Initial sample data
+        database.put("1", new UserResponse("1", "Ada Lovelace", "JVM Expert"));
+        database.put("2", new UserResponse("2", "Alan Turing", "Algorithm Master"));
+    }
+
+    public List<UserResponse> findAll() {
+        return new ArrayList<>(database.values());
+    }
+
     public UserResponse findById(String id) {
-        // Simulating a database fetch
-        if (id.equals("1")) {
-            return new UserResponse(id, "Ada Lovelace", "JVM Expert");
-        } else if (id.equals("2")) {
-            return new UserResponse(id, "Alan Turing", "Algorithm Master");
+        return database.get(id);
+    }
+
+    public UserResponse create(CreateUserRequest request) {
+        String newId = String.valueOf(idSequence.incrementAndGet());
+        UserResponse newUser = new UserResponse(newId, request.name(), request.level());
+        database.put(newId, newUser);
+        return newUser;
+    }
+
+    public UserResponse update(String id, UpdateUserRequest request) {
+        if (!database.containsKey(id)) {
+            return null;
         }
-        return null;
+        UserResponse updatedUser = new UserResponse(id, request.name(), request.level());
+        database.put(id, updatedUser);
+        return updatedUser;
+    }
+
+    public boolean delete(String id) {
+        return database.remove(id) != null;
     }
 }

@@ -2,13 +2,13 @@ package com.bedrock.core;
 
 import com.bedrock.exception.BedrockException;
 import com.bedrock.ioc.BedrockContainer;
-import com.bedrock.web.BedrockController;
-import com.bedrock.web.BedrockGet;
+import com.bedrock.web.*;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +49,38 @@ public class BedrockApp {
     }
 
     /**
+     * Registers a functional POST route.
+     */
+    public BedrockApp post(String path, Handler handler) {
+        router.addRoute("POST", path, handler);
+        return this;
+    }
+
+    /**
+     * Registers a functional PUT route.
+     */
+    public BedrockApp put(String path, Handler handler) {
+        router.addRoute("PUT", path, handler);
+        return this;
+    }
+
+    /**
+     * Registers a functional DELETE route.
+     */
+    public BedrockApp delete(String path, Handler handler) {
+        router.addRoute("DELETE", path, handler);
+        return this;
+    }
+
+    /**
+     * Registers a functional PATCH route.
+     */
+    public BedrockApp patch(String path, Handler handler) {
+        router.addRoute("PATCH", path, handler);
+        return this;
+    }
+
+    /**
      * Adds a global middleware that will run BEFORE the route handler.
      */
     public BedrockApp before(Middleware middleware) {
@@ -66,7 +98,8 @@ public class BedrockApp {
 
     /**
      * Registers classes (Controllers, Services) in the IoC Container and automatically binds
-     * methods annotated with @BedrockGet, transforming them into native routes in the Router.
+     * methods annotated with @BedrockGet, @BedrockPost, @BedrockPut, @BedrockDelete, @BedrockPatch,
+     * transforming them into native routes in the Router.
      */
     public BedrockApp bindControllers(Class<?>... classes) {
         // 1. Register all dependencies in the IoC engine
@@ -78,49 +111,85 @@ public class BedrockApp {
                 Object controllerInstance = container.getBean(clazz);
                 
                 for (Method method : clazz.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(BedrockGet.class)) {
-                        BedrockGet annotation = method.getAnnotation(BedrockGet.class);
-                        String path = annotation.value();
-                        
-                        Handler handler = ctx -> {
-                            try {
-                                method.setAccessible(true);
-                                Object result;
-                                
-                                // Supports methods that receive the Context or no arguments
-                                if (method.getParameterCount() == 1 && method.getParameterTypes()[0].equals(Context.class)) {
-                                    result = method.invoke(controllerInstance, ctx);
-                                } else if (method.getParameterCount() == 0) {
-                                    result = method.invoke(controllerInstance);
-                                } else {
-                                    throw new BedrockException(
-                                        "Invalid controller method '" + method.getName() + "'.",
-                                        "In Bedrock, controller methods must receive exactly (Context ctx) or have no arguments at all."
-                                    );
-                                }
-                                
-                                // If the method returns something other than void, we return it with 200 OK via JSON
-                                if (result != null) {
-                                    ctx.ok(result);
-                                }
-                            } catch (InvocationTargetException e) {
-                                BedrockLogger.error("CONTROLLER", "Execution error in " + method.getName() + ": " + e.getCause().getMessage());
-                                throw new Exception("Execution error in Controller: " + e.getCause().getMessage(), e.getCause());
-                            } catch (Exception e) {
-                                throw new BedrockException(
-                                    "Internal error routing call via Reflection for method '" + method.getName() + "'.",
-                                    "Check if the method is accessible and properly configured.",
-                                    e
-                                );
-                            }
-                        };
-                        
-                        router.addRoute("GET", path, handler);
+                    RouteInfo routeInfo = extractRouteInfo(method);
+                    if (routeInfo == null) {
+                        continue;
                     }
+
+                    String httpMethod = routeInfo.httpMethod();
+                    String path = routeInfo.path();
+                    
+                    Handler handler = ctx -> {
+                        try {
+                            method.setAccessible(true);
+                            Parameter[] parameters = method.getParameters();
+                            Object[] args = new Object[parameters.length];
+
+                            for (int i = 0; i < parameters.length; i++) {
+                                Class<?> paramType = parameters[i].getType();
+                                if (paramType.equals(Context.class)) {
+                                    args[i] = ctx;
+                                } else {
+                                    // Automatic JSON body binding for DTO / Record / POJO parameters
+                                    args[i] = ctx.bodyAs(paramType);
+                                }
+                            }
+
+                            Object result = method.invoke(controllerInstance, args);
+                            
+                            // Response convention handling
+                            if (result != null) {
+                                if (ctx.getResponseBody() == null) {
+                                    if ("POST".equalsIgnoreCase(httpMethod)) {
+                                        ctx.created(result);
+                                    } else {
+                                        ctx.ok(result);
+                                    }
+                                }
+                            } else if (method.getReturnType().equals(void.class) && ctx.getResponseBody() == null) {
+                                if ("DELETE".equalsIgnoreCase(httpMethod) || ctx.getStatusCode() == 200) {
+                                    ctx.noContent();
+                                }
+                            }
+                        } catch (InvocationTargetException e) {
+                            Throwable cause = e.getCause() != null ? e.getCause() : e;
+                            BedrockLogger.error("CONTROLLER", "Execution error in " + method.getName() + ": " + cause.getMessage());
+                            throw new Exception("Execution error in Controller: " + cause.getMessage(), cause);
+                        } catch (Exception e) {
+                            throw new BedrockException(
+                                "Internal error routing call via Reflection for method '" + method.getName() + "'.",
+                                "Check if the method is accessible and properly configured.",
+                                e
+                            );
+                        }
+                    };
+                    
+                    router.addRoute(httpMethod, path, handler);
                 }
             }
         }
         return this;
+    }
+
+    private record RouteInfo(String httpMethod, String path) {}
+
+    private RouteInfo extractRouteInfo(Method method) {
+        if (method.isAnnotationPresent(BedrockGet.class)) {
+            return new RouteInfo("GET", method.getAnnotation(BedrockGet.class).value());
+        }
+        if (method.isAnnotationPresent(BedrockPost.class)) {
+            return new RouteInfo("POST", method.getAnnotation(BedrockPost.class).value());
+        }
+        if (method.isAnnotationPresent(BedrockPut.class)) {
+            return new RouteInfo("PUT", method.getAnnotation(BedrockPut.class).value());
+        }
+        if (method.isAnnotationPresent(BedrockDelete.class)) {
+            return new RouteInfo("DELETE", method.getAnnotation(BedrockDelete.class).value());
+        }
+        if (method.isAnnotationPresent(BedrockPatch.class)) {
+            return new RouteInfo("PATCH", method.getAnnotation(BedrockPatch.class).value());
+        }
+        return null;
     }
 
     /**

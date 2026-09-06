@@ -49,6 +49,30 @@ class RouterTest {
     }
 
     @Test
+    void shouldHandleMultiVerbRoutesCorrectly() {
+        Handler getHandler = ctx -> {};
+        Handler postHandler = ctx -> {};
+        Handler putHandler = ctx -> {};
+        Handler deleteHandler = ctx -> {};
+
+        router.addRoute("GET", "/api/items", getHandler);
+        router.addRoute("POST", "/api/items", postHandler);
+        router.addRoute("PUT", "/api/items/{id}", putHandler);
+        router.addRoute("DELETE", "/api/items/{id}", deleteHandler);
+
+        Map<String, String> params = new HashMap<>();
+
+        assertEquals(getHandler, router.findHandler("GET", "/api/items", params));
+        assertEquals(postHandler, router.findHandler("POST", "/api/items", params));
+        assertEquals(putHandler, router.findHandler("PUT", "/api/items/42", params));
+        assertEquals("42", params.get("id"));
+
+        params.clear();
+        assertEquals(deleteHandler, router.findHandler("DELETE", "/api/items/99", params));
+        assertEquals("99", params.get("id"));
+    }
+
+    @Test
     void shouldReturnNullForUnmappedRoute() {
         Handler mockHandler = ctx -> {};
         router.addRoute("GET", "/api/users", mockHandler);
