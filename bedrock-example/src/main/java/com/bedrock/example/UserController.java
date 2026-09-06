@@ -38,7 +38,7 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Typed Path Validation & Domain Exceptions
+     * 🎓 BEDROCK TUTORIAL: Typed Path Validation and Domain Exceptions
      * 
      * 1. `ctx.paramAsInt("id")` automatically parses and validates that {id} is an integer.
      *    If the client sends "/api/users/abc", a BedrockValidationException is thrown
@@ -58,7 +58,7 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Automatic DTO Injection & HTTP POST
+     * 🎓 BEDROCK TUTORIAL: Automatic DTO Injection and HTTP POST
      * 
      * Notice how this method declares 'CreateUserRequest' directly as a parameter?
      * Bedrock parses the incoming JSON request body and maps it to the Record automatically,
@@ -85,7 +85,7 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: HTTP DELETE & Semantic Status Codes
+     * 🎓 BEDROCK TUTORIAL: HTTP DELETE and Semantic Status Codes
      */
     @BedrockDelete("/api/users/{id}")
     public void deleteUser(Context ctx) {
