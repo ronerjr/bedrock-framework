@@ -46,13 +46,20 @@ Add the core dependency to your project's `pom.xml`:
 ### 3. Write Code
 Bedrock uses Constructor Injection and the Reflection API to make your life easy, just like the big frameworks, but without the opaque magic.
 
-**The Service (Business Logic):**
+**The Service Interface & Implementation (SOLID 'D'):**
 ```java
+public interface IUserService {
+    List<UserResponse> findAll();
+    UserResponse findById(String id);
+    UserResponse create(CreateUserRequest req);
+}
+
 @BedrockComponent
-public class UserService {
+public class UserService implements IUserService {
     public UserResponse findById(String id) {
         return new UserResponse(id, "Ada Lovelace", "JVM Expert");
     }
+    // ...
 }
 ```
 
@@ -61,10 +68,10 @@ public class UserService {
 @BedrockController
 public class UserController {
     
-    // Constructor Injection automatically resolved by Bedrock!
-    private final UserService userService;
+    // Inversion of Control: depends on interface, not concrete class!
+    private final IUserService userService;
     
-    public UserController(UserService userService) {
+    public UserController(IUserService userService) {
         this.userService = userService;
     }
 
@@ -75,13 +82,13 @@ public class UserController {
 
     @BedrockGet("/api/users/{id}")
     public void getUser(Context ctx) {
-        String id = ctx.pathParam("id");
-        UserResponse user = userService.findById(id);
-        if (user != null) {
-            ctx.ok(user);
-        } else {
-            ctx.notFound("User not found with id: " + id);
+        // Typed validation: throws BedrockValidationException (HTTP 400) if not an integer!
+        int id = ctx.paramAsInt("id");
+        UserResponse user = userService.findById(String.valueOf(id));
+        if (user == null) {
+            throw new UserNotFoundException(String.valueOf(id));
         }
+        ctx.ok(user);
     }
 
     // Automatic JSON deserialization into Java Records & 201 Created by default!
@@ -100,7 +107,17 @@ public class Application {
             .before(ctx -> BedrockLogger.info("HTTP", "Incoming request: " + ctx.path()))
             .after(ctx -> ctx.setHeader("X-Powered-By", "Bedrock-Java-21"))
             .get("/api/ping", ctx -> ctx.ok("pong"))
-            .bindControllers(UserService.class, UserController.class)
+            
+            // 1. Interface Inversion (IoC)
+            .bind(IUserService.class, UserService.class)
+            
+            // 2. Global Exception Handling (RFC 7807 Problem Details fallback)
+            .onError(UserNotFoundException.class, (ctx, ex) -> {
+                ctx.notFound(Map.of("error", ex.getMessage(), "status", 404));
+            })
+            
+            // 3. Explicit Component Registration
+            .register(UserService.class, UserController.class)
             .start();
     }
 }
@@ -184,9 +201,18 @@ Tired of unreadable stack traces? Bedrock exceptions are inspired by Spring's `F
 [Reason]: Could not resolve dependency 'UserService'.
 
 [Action Required]: 
-Ensure that 'UserService' is passed to app.bindControllers(...)
+Ensure that 'UserService' is passed to app.register(...)
 **************************************************************
 ```
+
+### 🔄 Interface Inversion (SOLID 'D')
+Program to interfaces, not implementations. Bedrock allows binding interfaces to concrete implementations via `app.bind(Interface.class, Implementation.class)`. When any controller or service requests the interface in its constructor, Bedrock's IoC container automatically instantiates and injects the bound concrete class. This makes your application decoupled and 100% testable with mocks without running any IoC container.
+
+### 🎯 Typed Validation & Sanitization
+Avoid manual string parsing and `NumberFormatException` leaks in your controllers. `Context` provides clean helper methods (`ctx.paramAsInt("id")`, `ctx.paramAsLong("id")`, `ctx.queryParamAsInt("page")`, and URL-decoded `ctx.queryParam("name")`). When an invalid or missing value is detected, Bedrock immediately throws an actionable `BedrockValidationException` translated to standard HTTP 400 Bad Request.
+
+### 🛡️ Centralized Error Handling & RFC 7807 Problem Details
+Eliminate repetitive `try/catch` boilerplate across all your endpoints. Register domain exception handlers via `app.onError(CustomException.class, (ctx, ex) -> ...)`. If an unhandled exception bubbles up, Bedrock catches it, inspects the hierarchy, unwraps reflection calls, and falls back to standard RFC 7807 Problem Details with HTTP 500.
 
 ---
 

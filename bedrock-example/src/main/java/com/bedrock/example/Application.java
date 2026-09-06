@@ -21,7 +21,21 @@ public class Application {
         // 3. Simple programmatic route
         app.get("/api/ping", ctx -> ctx.ok("pong"));
 
-        // 4. Explicit Component Registration & Dependency Injection:
+        // 4. Interface Inversion (SOLID 'D'):
+        // Decouple controllers from concrete service implementations.
+        // Bedrock injects the bound concrete class when any controller declares IUserService.
+        app.bind(IUserService.class, UserService.class);
+
+        // 5. Global Exception Handling:
+        // Centralized domain exception handling eliminates boilerplate try/catch in controllers.
+        app.onError(UserNotFoundException.class, (ctx, ex) -> {
+            ctx.notFound(java.util.Map.of(
+                "error", ex.getMessage(),
+                "status", 404
+            ));
+        });
+
+        // 6. Explicit Component Registration & Dependency Injection:
         // Pass all components (Services, Controllers) to the engine.
         // Bedrock builds the dependency graph, injects services via constructor,
         // and routes HTTP endpoints automatically!

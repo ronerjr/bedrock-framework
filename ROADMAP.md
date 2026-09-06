@@ -16,18 +16,18 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 
 ---
 
-## 🛠️ Versão 1.2 - *A Vida Real da API (Validação & Robustez)*
+## ✅ Versão 1.2 - *A Vida Real da API (Validação & Robustez)* (Concluído)
 *Foco: Resolver as dores diárias de quem constrói APIs limpas e desacopladas, mantendo o princípio de que **"Explícito é melhor do que implícito"**.*
 
-- [ ] **Validação Didática de Dados:** Métodos auxiliares no `Context` para extrair e validar entradas sem anotações mágicas (ex: `ctx.paramAsInt("id")`, `ctx.bodyAs(UserDto.class)` com retorno de erros amigáveis se campos obrigatórios faltarem).
-  - *Conceito Ensinado:* Sanitização de dados de entrada e prevenção de `NumberFormatException`/`NullPointerException`.
-- [ ] **Inversão de Interfaces no IoC (Letra 'D' do SOLID):** Capacidade de registrar interfaces para depender de abstrações.
-  - *Exemplo:* `app.bind(ILinkService.class, LinkServiceImpl.class)`
-  - *Conceito Ensinado:* Princípio da Inversão de Dependência (SOLID) e facilidade de testes unitários com Mocks.
-- [ ] **Global Exception Handler Amigável:** Interceptador central para capturar exceções não tratadas e padronizar o JSON de erro (estilo Problem Details RFC 7807), eliminando `try/catch` repetitivos.
-  - *Conceito Ensinado:* Centralized Error Handling e códigos de status HTTP semânticos (400, 404, 422, 500).
+- [x] **Validação Didática de Dados:** Métodos auxiliares no `Context` para extrair e validar entradas sem anotações mágicas (`ctx.paramAsInt("id")`, `ctx.paramAsLong("id")`, `ctx.queryParamAsInt("page")`, decodificação de URL em `ctx.queryParam(...)`, `ctx.badRequest(Object)`, `ctx.notFound(Object)`).
+  - *Conceito Ensinado:* Sanitização de dados de entrada, prevenção de `NumberFormatException`/`NullPointerException` e exceção com diagnóstico acionável (`BedrockValidationException`).
+- [x] **Inversão de Interfaces no IoC (Letra 'D' do SOLID):** Capacidade de registrar e vincular interfaces para depender de abstrações (`app.bind(Interface.class, Impl.class)`).
+  - *Exemplo:* `app.bind(IUserService.class, UserService.class)`
+  - *Conceito Ensinado:* Princípio da Inversão de Dependência (SOLID) e facilidade de testes unitários isolados com Mocks (sem precisar de container IoC).
+- [x] **Global Exception Handler Amigável (`app.onError`):** Interceptador central para capturar exceções da camada de domínio/controladores e padronizar o JSON de erro (estilo Problem Details RFC 7807), eliminando `try/catch` repetitivos.
+  - *Conceito Ensinado:* Centralized Error Handling, polimorfismo de exceções e códigos de status HTTP semânticos (400, 404, 422, 500).
 
-> 💡 **Decisão de Design Pedagógica:** Mantemos o registro de componentes e rotas 100% explícito (`app.register(...)`), rejeitando *Auto-Discovery* ou escaneamento mágico de pacotes por padrão. O aluno deve sempre ser capaz de dar `Ctrl+Clique` e ver exatamente onde cada peça do sistema é instanciada e conectada.
+> 💡 **Decisão de Design Pedagógica:** Mantemos o registro de componentes e rotas 100% explícito (`app.register(...)` e `app.bind(...)`), rejeitando *Auto-Discovery* ou escaneamento mágico de pacotes por padrão. O aluno deve sempre ser capaz de dar `Ctrl+Clique` e ver exatamente onde cada peça do sistema é instanciada e conectada.
 
 ---
 

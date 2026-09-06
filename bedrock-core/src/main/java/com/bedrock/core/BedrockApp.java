@@ -1,6 +1,7 @@
 package com.bedrock.core;
 
 import com.bedrock.exception.BedrockException;
+import com.bedrock.exception.BedrockValidationException;
 import com.bedrock.ioc.BedrockContainer;
 import com.bedrock.web.*;
 import com.sun.net.httpserver.HttpServer;
@@ -11,6 +12,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 
@@ -22,6 +24,7 @@ public class BedrockApp {
     private final int port;
     private final Router router;
     private final BedrockContainer container;
+    private final Map<Class<? extends Throwable>, ErrorHandler<? extends Throwable>> errorHandlers = new LinkedHashMap<>();
 
     private BedrockApp(int port) {
         this.port = port;
@@ -97,6 +100,100 @@ public class BedrockApp {
     }
 
     /**
+     * 🎓 BEDROCK TUTORIAL: Interface Inversion (SOLID 'D')
+     * 
+     * Binds an interface or abstract class to a concrete implementation in the IoC Container.
+     * When any component declares the interface as a constructor dependency,
+     * Bedrock resolves and injects an instance of the concrete class.
+     * 
+     * Example:
+     *   app.bind(IUserService.class, UserService.class);
+     */
+    public <T> BedrockApp bind(Class<T> interfaceClass, Class<? extends T> implementationClass) {
+        container.bind(interfaceClass, implementationClass);
+        return this;
+    }
+
+    /**
+     * 🎓 BEDROCK TUTORIAL: Global Exception Handling
+     * 
+     * Registers a custom handler for a specific exception type (or any subclass).
+     * If an uncaught exception of this type occurs during route execution,
+     * this handler is invoked to populate the response buffer before sending it to the client.
+     * 
+     * Example:
+     *   app.onError(UserNotFoundException.class, (ctx, ex) -> {
+     *       ctx.notFound(Map.of("error", ex.getMessage()));
+     *   });
+     */
+    @SuppressWarnings("unchecked")
+    public <E extends Throwable> BedrockApp onError(Class<E> exceptionClass, ErrorHandler<E> handler) {
+        errorHandlers.put(exceptionClass, handler);
+        return this;
+    }
+
+    /**
+     * Returns the underlying IoC Container instance.
+     */
+    public BedrockContainer getContainer() {
+        return container;
+    }
+
+    /**
+     * Internal exception dispatcher. Invokes registered custom error handlers,
+     * standard validation handlers, or RFC 7807 fallback.
+     */
+    @SuppressWarnings("unchecked")
+    public void handleException(Context ctx, Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause instanceof InvocationTargetException ite && ite.getCause() != null) {
+            cause = ite.getCause();
+        }
+
+        // 1. Check user-registered exception handlers
+        for (Map.Entry<Class<? extends Throwable>, ErrorHandler<? extends Throwable>> entry : errorHandlers.entrySet()) {
+            if (entry.getKey().isAssignableFrom(cause.getClass())) {
+                try {
+                    ErrorHandler<Throwable> handler = (ErrorHandler<Throwable>) entry.getValue();
+                    handler.handle(ctx, cause);
+                    return;
+                } catch (Exception handlerEx) {
+                    BedrockLogger.error("EXCEPTION-HANDLER", "Error executing custom error handler for " + cause.getClass().getSimpleName() + ": " + handlerEx.getMessage());
+                    cause = handlerEx;
+                    break;
+                }
+            }
+        }
+
+        // 2. Default BedrockValidationException handler -> 400 Bad Request
+        if (cause instanceof BedrockValidationException bve) {
+            Map<String, Object> problem = new LinkedHashMap<>();
+            problem.put("type", "https://bedrock.dev/errors/validation-error");
+            problem.put("title", "Validation Error");
+            problem.put("status", 400);
+            problem.put("detail", bve.getMessage());
+            problem.put("parameter", bve.getParameterName());
+            if (bve.getInvalidValue() != null) {
+                problem.put("invalidValue", bve.getInvalidValue());
+            }
+            if (bve.getAction() != null) {
+                problem.put("action", bve.getAction());
+            }
+            ctx.status(400).json(problem);
+            return;
+        }
+
+        // 3. Fallback: RFC 7807 Problem Details 500 Internal Server Error
+        BedrockLogger.error("HTTP-SERVER", "Unhandled exception in request: " + cause.getMessage());
+        Map<String, Object> problem = new LinkedHashMap<>();
+        problem.put("type", "https://bedrock.dev/errors/internal-server-error");
+        problem.put("title", "Internal Server Error");
+        problem.put("status", 500);
+        problem.put("detail", cause.getMessage() != null ? cause.getMessage() : "An unexpected error occurred");
+        ctx.status(500).json(problem);
+    }
+
+    /**
      * 🎓 BEDROCK TUTORIAL: Explicit Component Registration
      * 
      * Registers application classes (Services, Repositories, Controllers) in the IoC Container.
@@ -160,14 +257,10 @@ public class BedrockApp {
                             }
                         } catch (InvocationTargetException e) {
                             Throwable cause = e.getCause() != null ? e.getCause() : e;
-                            BedrockLogger.error("CONTROLLER", "Execution error in " + method.getName() + ": " + cause.getMessage());
-                            throw new Exception("Execution error in Controller: " + cause.getMessage(), cause);
-                        } catch (Exception e) {
-                            throw new BedrockException(
-                                "Internal error routing call via Reflection for method '" + method.getName() + "'.",
-                                "Check if the method is accessible and properly configured.",
-                                e
-                            );
+                            if (cause instanceof Exception ex) {
+                                throw ex;
+                            }
+                            throw new RuntimeException(cause);
                         }
                     };
 
@@ -247,13 +340,21 @@ public class BedrockApp {
                     // 4. Flush buffer to network
                     ctx.flush();
                     
-                } catch (Exception e) {
-                    BedrockLogger.error("HTTP-SERVER", "Internal request failure: " + e.getMessage());
-                    e.printStackTrace();
+                } catch (Throwable e) {
                     try {
-                        ctx.badRequest("An internal error occurred: " + e.getMessage());
+                        handleException(ctx, e);
+
+                        // Execute After Middlewares even on error (e.g. security headers, logging)
+                        for (AfterMiddleware middleware : router.getAfterMiddlewares()) {
+                            try {
+                                middleware.handle(ctx);
+                            } catch (Exception ignore) {}
+                        }
+
                         ctx.flush();
-                    } catch (Exception ignore) {}
+                    } catch (Exception ex) {
+                        BedrockLogger.error("HTTP-SERVER", "Fatal error flushing response: " + ex.getMessage());
+                    }
                 }
             });
             

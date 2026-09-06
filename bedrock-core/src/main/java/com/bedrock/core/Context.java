@@ -1,10 +1,12 @@
 package com.bedrock.core;
 
+import com.bedrock.exception.BedrockValidationException;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,20 +56,107 @@ public class Context {
     }
 
     public String queryParam(String name) {
-        String query = exchange.getRequestURI().getQuery();
-        if (query == null) return null;
+        String query = exchange.getRequestURI().getRawQuery();
+        if (query == null || query.isEmpty()) return null;
         
         for (String param : query.split("&")) {
-            String[] pair = param.split("=");
-            if (pair.length == 2 && pair[0].equals(name)) {
-                return pair[1];
+            int eq = param.indexOf('=');
+            if (eq > 0) {
+                String key = URLDecoder.decode(param.substring(0, eq), StandardCharsets.UTF_8);
+                if (key.equals(name)) {
+                    return URLDecoder.decode(param.substring(eq + 1), StandardCharsets.UTF_8);
+                }
+            } else if (eq == -1) {
+                String key = URLDecoder.decode(param, StandardCharsets.UTF_8);
+                if (key.equals(name)) {
+                    return "";
+                }
             }
         }
         return null;
     }
 
+    public String queryParam(String name, String defaultValue) {
+        String val = queryParam(name);
+        return val != null ? val : defaultValue;
+    }
+
+    public int queryParamAsInt(String name, int defaultValue) {
+        String val = queryParam(name);
+        if (val == null || val.isBlank()) return defaultValue;
+        try {
+            return Integer.parseInt(val);
+        } catch (NumberFormatException e) {
+            throw new BedrockValidationException(
+                name,
+                val,
+                "Invalid query parameter '" + name + "': '" + val + "' is not a valid integer.",
+                "Provide an integer value for query parameter '" + name + "' (e.g. ?" + name + "=10) or omit it to use the default value " + defaultValue + "."
+            );
+        }
+    }
+
+    public Integer queryParamAsInt(String name) {
+        String val = queryParam(name);
+        if (val == null || val.isBlank()) return null;
+        try {
+            return Integer.parseInt(val);
+        } catch (NumberFormatException e) {
+            throw new BedrockValidationException(
+                name,
+                val,
+                "Invalid query parameter '" + name + "': '" + val + "' is not a valid integer.",
+                "Provide an integer value for query parameter '" + name + "' (e.g. ?" + name + "=10)."
+            );
+        }
+    }
+
     public String pathParam(String name) {
         return pathParams.get(name);
+    }
+
+    public int paramAsInt(String name) {
+        String val = pathParam(name);
+        if (val == null) {
+            throw new BedrockValidationException(
+                name,
+                null,
+                "Missing required path parameter '" + name + "'.",
+                "Ensure the route defines {" + name + "} and the client provides a value in the URL path."
+            );
+        }
+        try {
+            return Integer.parseInt(val);
+        } catch (NumberFormatException e) {
+            throw new BedrockValidationException(
+                name,
+                val,
+                "Invalid path parameter '" + name + "': '" + val + "' is not a valid integer.",
+                "Provide an integer value for '" + name + "' in the URL path (e.g., /123)."
+            );
+        }
+    }
+
+    public long paramAsLong(String name) {
+        String val = pathParam(name);
+        if (val == null) {
+            throw new BedrockValidationException(
+                name,
+                null,
+                "Missing required path parameter '" + name + "'.",
+                "Ensure the route defines {" + name + "} and the client provides a value in the URL path."
+            );
+        }
+        try {
+            return Long.parseLong(val);
+        } catch (NumberFormatException e) {
+            throw new BedrockValidationException(
+                name,
+                val,
+                "Invalid path parameter '" + name + "': '" + val + "' is not a valid long number.",
+                "Provide a numeric long value for '" + name + "' in the URL path."
+            );
+        }
     }
 
     public String path() {
@@ -103,6 +192,12 @@ public class Context {
         this.responseHeaders.put(key, value);
     }
 
+    public Context json(Object body) {
+        this.responseBody = body;
+        this.contentType = "application/json";
+        return this;
+    }
+
     public void ok(Object body) {
         this.statusCode = 200;
         this.responseBody = body;
@@ -122,14 +217,22 @@ public class Context {
     }
 
     public void notFound(String msg) {
+        notFound(Map.of("error", msg));
+    }
+
+    public void notFound(Object body) {
         this.statusCode = 404;
-        this.responseBody = Map.of("error", msg);
+        this.responseBody = body;
         this.contentType = "application/json";
     }
 
     public void badRequest(String msg) {
+        badRequest(Map.of("error", msg));
+    }
+
+    public void badRequest(Object body) {
         this.statusCode = 400;
-        this.responseBody = Map.of("error", msg);
+        this.responseBody = body;
         this.contentType = "application/json";
     }
 

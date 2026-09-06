@@ -13,12 +13,27 @@ package com.bedrock.exception;
  */
 public class BedrockException extends RuntimeException {
 
+    private final String reason;
+    private final String action;
+
     public BedrockException(String reason, String action) {
         super(formatMessage(reason, action));
+        this.reason = reason;
+        this.action = action;
     }
 
     public BedrockException(String reason, String action, Throwable cause) {
         super(formatMessage(reason, action), cause);
+        this.reason = reason;
+        this.action = action;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public String getAction() {
+        return action;
     }
 
     private static String formatMessage(String reason, String action) {

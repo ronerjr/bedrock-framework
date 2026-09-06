@@ -14,20 +14,15 @@ import java.util.List;
 @BedrockController
 public class UserController {
 
-    private final UserService userService;
+    private final IUserService userService;
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Constructor Injection
+     * 🎓 BEDROCK TUTORIAL: Constructor Injection with Interface Inversion (SOLID 'D')
      * 
-     * Look closely: There is NO @Autowired or @Inject here!
-     * Bedrock automatically detects the constructor and knows it needs to inject
-     * a 'UserService' for this class to work.
-     * 
-     * WHY IS THIS BETTER? 
-     * 1. Immutability (the field is 'final').
-     * 2. Easy to Test (you can just say `new UserController(mockService)` in your JUnit tests).
+     * UserController declares its dependency on the 'IUserService' interface!
+     * Bedrock resolves the concrete implementation registered via `app.bind(IUserService.class, UserService.class)`.
      */
-    public UserController(UserService userService) {
+    public UserController(IUserService userService) {
         this.userService = userService;
     }
 
@@ -43,27 +38,23 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Explicit Control with the 'Context' Object
+     * 🎓 BEDROCK TUTORIAL: Typed Path Validation & Domain Exceptions
      * 
-     * When you need fine-grained control over status codes (like 404 Not Found)
-     * or HTTP headers, accept `Context ctx` as your method parameter!
-     * 
-     * Notice the two ways to write Bedrock endpoints:
-     * 1. Declarative Mode (e.g. `listUsers` and `createUser`): Return Java Records/Lists directly.
-     *    Bedrock automatically serializes them to JSON with standard status codes (200 OK, 201 Created).
-     * 2. Full Control Mode (e.g. `findUser` and `updateUser`): Accept `Context ctx` to inspect
-     *    headers, path variables, query params, or return custom status codes (ctx.notFound(), ctx.noContent()).
+     * 1. `ctx.paramAsInt("id")` automatically parses and validates that {id} is an integer.
+     *    If the client sends "/api/users/abc", a BedrockValidationException is thrown
+     *    and translated into HTTP 400 Bad Request.
+     * 2. If the user does not exist, we throw `UserNotFoundException`.
+     *    Bedrock's global `app.onError` catches it and formats the HTTP 404 response!
      */
     @BedrockGet("/api/users/{id}")
     public void findUser(Context ctx) {
-        String id = ctx.pathParam("id");
-        UserResponse user = userService.findById(id);
+        int id = ctx.paramAsInt("id");
+        UserResponse user = userService.findById(String.valueOf(id));
         
-        if (user != null) {
-            ctx.ok(user);
-        } else {
-            ctx.notFound("User not found with id: " + id);
+        if (user == null) {
+            throw new UserNotFoundException(String.valueOf(id));
         }
+        ctx.ok(user);
     }
 
     /**
@@ -80,38 +71,30 @@ public class UserController {
 
     /**
      * 🎓 BEDROCK TUTORIAL: HTTP PUT with Path Variable and Request Body
-     * 
-     * You can combine path parameters (`ctx.pathParam("id")`) and body deserialization
-     * (`ctx.bodyAs(UpdateUserRequest.class)`) inside the same handler!
      */
     @BedrockPut("/api/users/{id}")
     public void updateUser(Context ctx) {
-        String id = ctx.pathParam("id");
+        int id = ctx.paramAsInt("id");
         UpdateUserRequest request = ctx.bodyAs(UpdateUserRequest.class);
         
-        UserResponse updated = userService.update(id, request);
-        if (updated != null) {
-            ctx.ok(updated);
-        } else {
-            ctx.notFound("User not found with id: " + id);
+        UserResponse updated = userService.update(String.valueOf(id), request);
+        if (updated == null) {
+            throw new UserNotFoundException(String.valueOf(id));
         }
+        ctx.ok(updated);
     }
 
     /**
      * 🎓 BEDROCK TUTORIAL: HTTP DELETE & Semantic Status Codes
-     * 
-     * Successful deletions typically return HTTP 204 No Content (via `ctx.noContent()`),
-     * because there is no response body to return. If the resource doesn't exist, return 404!
      */
     @BedrockDelete("/api/users/{id}")
     public void deleteUser(Context ctx) {
-        String id = ctx.pathParam("id");
-        boolean deleted = userService.delete(id);
+        int id = ctx.paramAsInt("id");
+        boolean deleted = userService.delete(String.valueOf(id));
         
-        if (deleted) {
-            ctx.noContent();
-        } else {
-            ctx.notFound("User not found with id: " + id);
+        if (!deleted) {
+            throw new UserNotFoundException(String.valueOf(id));
         }
+        ctx.noContent();
     }
 }

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * and reuse it whenever another component (like UserController) asks for it.
  */
 @BedrockComponent
-public class UserService {
+public class UserService implements IUserService {
 
     private final Map<String, UserResponse> database = new ConcurrentHashMap<>();
     private final AtomicLong idSequence = new AtomicLong(2);
