@@ -31,13 +31,15 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 
 ---
 
-## 💾 Versão 1.3 - *Persistência Descomplicada (Banco de Dados sem Mágica)*
-*Foco: Como salvar dados de verdade em disco antes de usar ORMs complexos.*
+## ✅ Versão 1.3 - *Persistência Descomplicada (Banco de Dados sem Mágica)* (Concluído)
+*Foco: Como salvar dados de verdade em disco antes de usar ORMs complexos, mantendo o `bedrock-core` com **Zero Dependências**.*
 
-- [ ] **CRUD Nativo com SQLite / H2:** Conectar a uma base de dados real usando apenas JDBC nativo (`java.sql.PreparedStatement`, `ResultSet` e `DataSource`).
-  - *Conceito Ensinado:* Como bancos de dados relacionais se comunicam com a JVM via drivers JDBC, sem o peso do Hibernate/JPA.
-- [ ] **Padrão Repository Educacional:** Implementação limpa do padrão `Repository` separando SQL da regra de negócio.
-  - *Conceito Ensinado:* Padrões de Arquitetura de Software e prevenção contra SQL Injection com parâmetros tipados.
+- [x] **Motor JDBC Transparente (`BedrockJdbc` & `RowMapper`):** Utilitário didático no Core usando puramente `java.sql.*` do JDK 21. Ensina `PreparedStatement` com parâmetros tipados (`?`), cursores com `ResultSet` e try-with-resources.
+  - *Conceito Ensinado:* Como bancos de dados relacionais se comunicam com a JVM via drivers JDBC, sem o peso ou a caixa-preta de ORMs como Hibernate/JPA.
+- [x] **Padrão Repository Educacional:** Implementação das interfaces `IUserRepository` e `SqliteUserRepository` separando SQL da regra de negócio (`UserService`).
+  - *Conceito Ensinado:* Padrões de Arquitetura de Software (Repository Pattern), desacoplamento com SOLID 'D' e blindagem estrita contra SQL Injection.
+- [x] **Injeção de Instâncias no IoC:** Suporte a `app.registerInstance(Class<T>, T instance)` para injetar recursos pré-configurados (como instâncias de `BedrockJdbc`) no container.
+- [x] **SQLite Real no `bedrock-example`:** Driver `sqlite-jdbc` incluído unicamente no exemplo para demonstrar criação de schema (`CREATE TABLE IF NOT EXISTS`), chave primária autoincremento e persistência em arquivo (`bedrock.db`).
 
 ---
 

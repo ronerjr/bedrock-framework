@@ -115,6 +115,18 @@ public class BedrockApp {
     }
 
     /**
+     * 🎓 BEDROCK TUTORIAL: Pre-configured Bean Registration
+     * 
+     * Registers an existing pre-configured instance (such as a BedrockJdbc, DataSource,
+     * or third-party client) in the IoC container.
+     * Any registered controller or service requiring this type will have this instance injected.
+     */
+    public <T> BedrockApp registerInstance(Class<T> type, T instance) {
+        container.registerInstance(type, instance);
+        return this;
+    }
+
+    /**
      * 🎓 BEDROCK TUTORIAL: Global Exception Handling
      * 
      * Registers a custom handler for a specific exception type (or any subclass).

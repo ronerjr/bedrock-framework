@@ -49,6 +49,26 @@ public class BedrockContainer {
     }
 
     /**
+     * 🎓 BEDROCK TUTORIAL: Pre-configured Instance Registration
+     * 
+     * Registers an already instantiated object (such as BedrockJdbc, a DataSource, or external client)
+     * as a singleton bean in the container.
+     * When any component declares this type as a constructor parameter, Bedrock injects this instance.
+     */
+    public <T> BedrockContainer registerInstance(Class<T> type, T instance) {
+        if (type == null || instance == null) {
+            throw new BedrockException(
+                "Cannot register null type or instance in IoC container.",
+                "Provide a non-null class type and non-null instance."
+            );
+        }
+        beans.put(type, instance);
+        registeredClasses.add(type);
+        BedrockLogger.info("BEDROCK-IOC", "Mapped instance bean: '" + type.getSimpleName() + "'");
+        return this;
+    }
+
+    /**
      * Registers and instantiates classes, resolving their internal dependencies.
      */
     public void register(Class<?>... classes) {
@@ -64,6 +84,11 @@ public class BedrockContainer {
      * Uses a 'resolving' set to detect Circular Dependencies and prevent StackOverflowError.
      */
     private Object resolveAndInstantiate(Class<?> clazz, Set<Class<?>> resolving) {
+        // 1. If already instantiated or pre-registered, return the singleton instance immediately
+        if (beans.containsKey(clazz)) {
+            return beans.get(clazz);
+        }
+
         // If the target is an interface, resolve its bound implementation
         if (clazz.isInterface()) {
             Class<?> impl = interfaceBindings.get(clazz);
@@ -85,17 +110,17 @@ public class BedrockContainer {
             clazz = impl;
         }
 
-        // 1. Must be a registered class to be managed by the IoC
+        // If the implementation class was already instantiated, return it
+        if (beans.containsKey(clazz)) {
+            return beans.get(clazz);
+        }
+
+        // 2. Must be a registered class to be managed by the IoC
         if (!registeredClasses.contains(clazz)) {
             throw new BedrockException(
                 "Could not resolve dependency '" + clazz.getSimpleName() + "'.",
                 "Ensure that '" + clazz.getSimpleName() + "' is passed to app.register(...) in your BedrockApp startup."
             );
-        }
-
-        // 2. If already instantiated, return the singleton instance
-        if (beans.containsKey(clazz)) {
-            return beans.get(clazz);
         }
 
         // 3. Circular Dependency Detection

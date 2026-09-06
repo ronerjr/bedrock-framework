@@ -95,7 +95,9 @@ class UserControllerTest {
 
     @Test
     void shouldVerifyFullBedrockWiringWithInterfaceBindingAndGlobalErrorHandler() throws Exception {
+        IUserRepository mockRepo = mock(IUserRepository.class);
         BedrockApp app = BedrockApp.create(9999)
+                .registerInstance(IUserRepository.class, mockRepo)
                 .bind(IUserService.class, UserService.class)
                 .onError(UserNotFoundException.class, (ctx, ex) -> {
                     ctx.notFound(Map.of("error", ex.getMessage(), "status", 404));

@@ -214,6 +214,13 @@ Avoid manual string parsing and `NumberFormatException` leaks in your controller
 ### 🛡️ Centralized Error Handling & RFC 7807 Problem Details
 Eliminate repetitive `try/catch` boilerplate across all your endpoints. Register domain exception handlers via `app.onError(CustomException.class, (ctx, ex) -> ...)`. If an unhandled exception bubbles up, Bedrock catches it, inspects the hierarchy, unwraps reflection calls, and falls back to standard RFC 7807 Problem Details with HTTP 500.
 
+### 💾 Zero-Dependency JDBC & The Repository Pattern (`BedrockJdbc` & `RowMapper`)
+Stop memorizing ORM magic and learn how Java actually communicates with relational databases:
+1. **Zero External Dependencies:** `bedrock-core` uses exclusively `java.sql.*` built into the Java 21 standard library.
+2. **SQL Injection Defense:** Parameterized queries with `?` separate the compiled SQL structure from user data, eliminating SQL injection vulnerabilities by design.
+3. **The `RowMapper<T>` Pattern:** Understand how ORMs take a cursor (`ResultSet`) and construct Java 21 Records row by row, with strict try-with-resources resource management.
+4. **Pre-configured Bean Injection:** Use `app.registerInstance(BedrockJdbc.class, db)` to inject database clients directly into repositories (`IUserRepository` / `SqliteUserRepository`).
+
 ---
 
 ## 🤝 Contributing

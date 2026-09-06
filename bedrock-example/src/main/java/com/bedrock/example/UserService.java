@@ -1,57 +1,52 @@
 package com.bedrock.example;
 
 import com.bedrock.ioc.BedrockComponent;
+import com.bedrock.ioc.BedrockInject;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 🎓 BEDROCK TUTORIAL: The Service Layer (Business Logic)
  * 
- * The @BedrockComponent annotation registers this class in the Inversion of Control (IoC) Container.
- * This means Bedrock will create a SINGLE instance (Singleton) of this class at startup,
- * and reuse it whenever another component (like UserController) asks for it.
+ * Notice: UserService now injects 'IUserRepository' instead of maintaining an in-memory map!
+ * 
+ * ARCHITECTURAL FLOW:
+ * Client ➡️ HTTP Request ➡️ UserController ➡️ IUserService (UserService) ➡️ IUserRepository (SqliteUserRepository) ➡️ BedrockJdbc ➡️ SQLite DB
+ * 
+ * Every layer is strictly isolated behind interfaces (SOLID 'D').
  */
 @BedrockComponent
 public class UserService implements IUserService {
 
-    private final Map<String, UserResponse> database = new ConcurrentHashMap<>();
-    private final AtomicLong idSequence = new AtomicLong(2);
+    private final IUserRepository userRepository;
 
-    public UserService() {
-        // Initial sample data
-        database.put("1", new UserResponse("1", "Ada Lovelace", "JVM Expert"));
-        database.put("2", new UserResponse("2", "Alan Turing", "Algorithm Master"));
+    @BedrockInject
+    public UserService(IUserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
+    @Override
     public List<UserResponse> findAll() {
-        return new ArrayList<>(database.values());
+        return userRepository.findAll();
     }
 
+    @Override
     public UserResponse findById(String id) {
-        return database.get(id);
+        return userRepository.findById(id).orElse(null);
     }
 
+    @Override
     public UserResponse create(CreateUserRequest request) {
-        String newId = String.valueOf(idSequence.incrementAndGet());
-        UserResponse newUser = new UserResponse(newId, request.name(), request.level());
-        database.put(newId, newUser);
-        return newUser;
+        return userRepository.save(request);
     }
 
+    @Override
     public UserResponse update(String id, UpdateUserRequest request) {
-        if (!database.containsKey(id)) {
-            return null;
-        }
-        UserResponse updatedUser = new UserResponse(id, request.name(), request.level());
-        database.put(id, updatedUser);
-        return updatedUser;
+        return userRepository.update(id, request).orElse(null);
     }
 
+    @Override
     public boolean delete(String id) {
-        return database.remove(id) != null;
+        return userRepository.deleteById(id);
     }
 }
