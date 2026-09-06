@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The heart of the Bedrock Java Inversion of Control (IoC) Engine.
  * 
- * DESIGN PATTERN: Singleton Registry & Factory
+ * DESIGN PATTERN: Singleton Registry and Factory
  * Manages the lifecycle of beans as singletons.
  * Resolves dependencies recursively via Constructor Injection, ensuring immutability.
  */

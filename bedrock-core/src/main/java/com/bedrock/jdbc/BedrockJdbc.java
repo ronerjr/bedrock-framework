@@ -98,7 +98,7 @@ public class BedrockJdbc {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Single Object Queries & Null Safety
+     * 🎓 BEDROCK TUTORIAL: Single Object Queries and Null Safety
      * 
      * Executes a query expected to return at most one row.
      * 
