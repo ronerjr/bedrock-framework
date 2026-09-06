@@ -14,15 +14,24 @@ import java.util.*;
  *    and Java 21 Record Components to materialize strongly-typed objects.
  * 2. Serialization: Uses Reflection to inspect Records, POJOs, Maps, and Iterables to produce
  *    valid JSON strings.
+ *
+ * ⚠️ KNOWN LIMITATIONS:
+ * - No recursion depth limit: Deep nesting (>1000 levels) may cause StackOverflowError
+ * - Number precision: Values beyond Long.MAX_VALUE silently degrade to Double, losing precision
+ * - POJO deserialization requires a no-arg constructor (checked at runtime)
+ * - Unicode escape handling does not validate surrogate pair correctness
  */
 public final class BedrockJson {
+
+    // Configurable recursion depth limit to prevent DoS via deeply nested JSON
+    private static final int MAX_NESTING_DEPTH = 128;
 
     private BedrockJson() {
         // Utility class
     }
 
     // ==========================================
-    // SERIALIZATION (Java Object -> JSON String)
+    // SERIALIZATION (Java Object → JSON String)
     // ==========================================
 
     /**
@@ -85,7 +94,9 @@ public final class BedrockJson {
             for (RecordComponent component : clazz.getRecordComponents()) {
                 if (!first) sb.append(",");
                 try {
-                    Object val = component.getAccessor().invoke(obj);
+                    Method accessor = component.getAccessor();
+                    accessor.setAccessible(true);
+                    Object val = accessor.invoke(obj);
                     sb.append("\"").append(component.getName()).append("\":").append(toJson(val));
                 } catch (Exception e) {
                     throw new BedrockException(
@@ -150,7 +161,7 @@ public final class BedrockJson {
     }
 
     // ============================================
-    // DESERIALIZATION (JSON String -> Java Object)
+    // DESERIALIZATION (JSON String → Java Object)
     // ============================================
 
     /**
@@ -167,6 +178,11 @@ public final class BedrockJson {
 
     @SuppressWarnings("unchecked")
     private static Object mapNodeToObject(Object node, Class<?> targetClass) {
+        return mapNodeToObject(node, targetClass, targetClass);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object mapNodeToObject(Object node, Class<?> targetClass, Type genericType) {
         if (node == null) {
             return null;
         }
@@ -201,6 +217,16 @@ public final class BedrockJson {
         }
 
         if (targetClass.equals(List.class) && node instanceof List<?> list) {
+            if (genericType instanceof ParameterizedType pt && pt.getActualTypeArguments().length > 0) {
+                Type elemType = pt.getActualTypeArguments()[0];
+                if (elemType instanceof Class<?> elemClass) {
+                    List<Object> mapped = new ArrayList<>(list.size());
+                    for (Object item : list) {
+                        mapped.add(mapNodeToObject(item, elemClass, elemClass));
+                    }
+                    return mapped;
+                }
+            }
             return list;
         }
 
@@ -220,7 +246,7 @@ public final class BedrockJson {
                 RecordComponent comp = components[i];
                 paramTypes[i] = comp.getType();
                 Object rawVal = map.get(comp.getName());
-                args[i] = mapNodeToObject(rawVal, comp.getType());
+                args[i] = mapNodeToObject(rawVal, comp.getType(), comp.getGenericType());
             }
 
             try {
@@ -277,6 +303,7 @@ public final class BedrockJson {
     private static class JsonReader {
         private final String src;
         private int pos = 0;
+        private int depth = 0;
 
         public JsonReader(String src) {
             this.src = src;
@@ -315,12 +342,21 @@ public final class BedrockJson {
         }
 
         private Map<String, Object> parseObject() {
+            depth++;
+            if (depth > MAX_NESTING_DEPTH) {
+                throw new BedrockException(
+                    "Malformed JSON: nesting depth exceeds maximum of " + MAX_NESTING_DEPTH,
+                    "Reduce JSON nesting or increase MAX_NESTING_DEPTH if necessary."
+                );
+            }
+
             Map<String, Object> map = new LinkedHashMap<>();
             consume('{');
             skipWhitespace();
 
             if (peek() == '}') {
                 consume('}');
+                depth--;
                 return map;
             }
 
@@ -336,6 +372,7 @@ public final class BedrockJson {
                 char next = peek();
                 if (next == '}') {
                     consume('}');
+                    depth--;
                     break;
                 } else if (next == ',') {
                     consume(',');
@@ -350,12 +387,21 @@ public final class BedrockJson {
         }
 
         private List<Object> parseArray() {
+            depth++;
+            if (depth > MAX_NESTING_DEPTH) {
+                throw new BedrockException(
+                    "Malformed JSON: nesting depth exceeds maximum of " + MAX_NESTING_DEPTH,
+                    "Reduce JSON nesting or increase MAX_NESTING_DEPTH if necessary."
+                );
+            }
+
             List<Object> list = new ArrayList<>();
             consume('[');
             skipWhitespace();
 
             if (peek() == ']') {
                 consume(']');
+                depth--;
                 return list;
             }
 
@@ -366,6 +412,7 @@ public final class BedrockJson {
                 char next = peek();
                 if (next == ']') {
                     consume(']');
+                    depth--;
                     break;
                 } else if (next == ',') {
                     consume(',');
@@ -406,7 +453,14 @@ public final class BedrockJson {
                                 throw new BedrockException("Malformed JSON: invalid unicode escape", "Check unicode values.");
                             }
                             String hex = src.substring(pos, pos + 4);
-                            sb.append((char) Integer.parseInt(hex, 16));
+                            try {
+                                sb.append((char) Integer.parseInt(hex, 16));
+                            } catch (NumberFormatException e) {
+                                throw new BedrockException(
+                                    "Malformed JSON: invalid hex value in unicode escape: \\u" + hex,
+                                    "Ensure unicode escapes use valid hexadecimal (0-9, a-f, A-F)."
+                                );
+                            }
                             pos += 4;
                         }
                         default -> sb.append(esc);
@@ -449,6 +503,7 @@ public final class BedrockJson {
             try {
                 return Long.parseLong(numStr);
             } catch (NumberFormatException e) {
+                // Fallback to Double for numbers beyond Long range (precision loss)
                 return Double.parseDouble(numStr);
             }
         }

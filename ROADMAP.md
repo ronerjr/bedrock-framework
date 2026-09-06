@@ -1,55 +1,77 @@
 # 🗺️ Bedrock Java - Project Roadmap
 
-Bem-vindo ao Roadmap oficial do **Bedrock Java**. Como um framework educacional com a premissa de "Zero Dependências Externas", nosso objetivo de evolução não é adicionar milhares de integrações de terceiros, mas sim recriar padrões de engenharia modernos utilizando apenas a biblioteca padrão do JDK.
+Bem-vindo ao Roadmap oficial do **Bedrock Java**. Como um framework educacional com a premissa de **Zero Dependências Externas**, nosso objetivo de evolução não é adicionar bibliotecas de terceiros, mas sim recriar os padrões da engenharia moderna utilizando apenas a biblioteca padrão do JDK.
 
-Nossa evolução é dividida em *Milestones* claros, focados em melhorar a arquitetura (IoC), a robustez HTTP e, finalmente, abrir as portas para o Real-Time.
+Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um desenvolvedor: **Rotas & JSON ➡️ Validação & Robustez ➡️ Banco de Dados ➡️ Tempo Real ➡️ Segurança ➡️ Engenharia de Baixo Nível**.
 
 ---
 
-## 🚀 Versão 1.1 - *The "Solid Foundation" Update*
-*Foco: Elevar o IoC Container a um padrão de mercado e adicionar robustez no tratamento de requisições.*
+## ✅ Versão 1.1 - *RESTful & Native JSON Engine* (Concluído)
+*Foco: Transformar o Bedrock em uma ferramenta REST completa sem bibliotecas externas de JSON.*
 
-- [ ] **Inversão de Interfaces no IoC:** Capacidade de registrar interfaces para depender de abstrações, respeitando o princípio 'D' do SOLID.
+- [x] **Verbos HTTP RESTful Completos:** Suporte nativo às anotações `@BedrockGet`, `@BedrockPost`, `@BedrockPut`, `@BedrockDelete` e `@BedrockPatch`.
+- [x] **Motor JSON Nativo (`BedrockJson`):** Parser descendente recursivo (Lexer + Parser) e serializador por Reflexão para Java 21 Records e POJOs, sem Jackson ou Gson.
+  - *Blindagem:* Limite de profundidade de aninhamento (`MAX_NESTING_DEPTH = 128`), suporte a notação científica, escapes Unicode e deserialização de coleções genéricas em Records.
+- [x] **Binding Automático de DTOs:** Injeção direta de Records como parâmetros de métodos em Controllers com parsing automático de JSON do corpo da requisição.
+
+---
+
+## 🛠️ Versão 1.2 - *A Vida Real da API (Validação & Robustez)*
+*Foco: Resolver as dores diárias de quem constrói APIs limpas e desacopladas.*
+
+- [ ] **Validação Didática de Dados:** Métodos auxiliares no `Context` para extrair e validar entradas sem anotações mágicas (ex: `ctx.paramAsInt("id")`, `ctx.bodyAs(UserDto.class)` com retorno de erros amigáveis se campos obrigatórios faltarem).
+  - *Conceito Ensinado:* Sanitização de dados de entrada e prevenção de `NumberFormatException`/`NullPointerException`.
+- [ ] **Inversão de Interfaces no IoC (Letra 'D' do SOLID):** Capacidade de registrar interfaces para depender de abstrações.
   - *Exemplo:* `app.bind(ILinkService.class, LinkServiceImpl.class)`
-- [ ] **Auto-Discovery (Component Scanning):** Eliminar a necessidade de registrar classes manualmente. O framework deve varrer o classpath na largada procurando por `@BedrockController` e `@BedrockService`.
-- [ ] **Global Exception Handler:** Um interceptador central para capturar exceções não tratadas (ex: `EntityNotFoundException`) e padronizar o JSON de erro (Problema Details RFC 7807), limpando os `try/catch` dos controladores.
-- [ ] **Motor JSON Robusto:** Evoluir nosso algoritmo de Reflection para suportar e serializar corretamente nativos do Java moderno, como `LocalDate`, `UUID`, Enums e Listas Genéricas.
+  - *Conceito Ensinado:* Princípio da Inversão de Dependência (SOLID) e facilidade de testes unitários com Mocks.
+- [ ] **Global Exception Handler Amigável:** Interceptador central para capturar exceções não tratadas e padronizar o JSON de erro (estilo Problem Details RFC 7807), eliminando `try/catch` repetitivos.
+  - *Conceito Ensinado:* Centralized Error Handling e códigos de status HTTP semânticos (400, 404, 422, 500).
+- [ ] **Auto-Discovery (Classpath Component Scanning):** Varrer automaticamente o classpath na largada procurando por `@BedrockController` e `@BedrockComponent`.
+  - *Conceito Ensinado:* Reflection em nível de pacote (ClassLoader) para montagem dinâmica de grafos.
 
 ---
 
-## ⚡ Versão 2.0 - *The "Real-Time & Scale" Update*
-*Foco: Abandonar o HttpServer nativo restrito ao HTTP/1.1 para suportar TCP direto e conexões bidirecionais.*
+## 💾 Versão 1.3 - *Persistência Descomplicada (Banco de Dados sem Mágica)*
+*Foco: Como salvar dados de verdade em disco antes de usar ORMs complexos.*
+
+- [ ] **CRUD Nativo com SQLite / H2:** Conectar a uma base de dados real usando apenas JDBC nativo (`java.sql.PreparedStatement`, `ResultSet` e `DataSource`).
+  - *Conceito Ensinado:* Como bancos de dados relacionais se comunicam com a JVM via drivers JDBC, sem o peso do Hibernate/JPA.
+- [ ] **Padrão Repository Educacional:** Implementação limpa do padrão `Repository` separando SQL da regra de negócio.
+  - *Conceito Ensinado:* Padrões de Arquitetura de Software e prevenção contra SQL Injection com parâmetros tipados.
+
+---
+
+## ⚡ Versão 2.0 - *Comunicação em Tempo Real (WebSockets)*
+*Foco: Entender como o WhatsApp Web e chats funcionam por baixo dos panos.*
 
 - [ ] **Motor WebSockets (RFC 6455) do Zero:** Descer o nível para o `ServerSocketChannel` do Java NIO para manipular o Handshake TCP e o mascaramento de bits (Framing) dos WebSockets.
-- [ ] **Anotação de Real-Time:** Criação da anotação `@BedrockSocket("/chat")` para manter canais persistentes abertos sobre Virtual Threads consumindo recursos mínimos.
-- [ ] **Motor de Roteamento Avançado:** Roteador com suporte a Regex em *Path Variables* (ex: `/users/{id:[0-9]+}`) e parse automático de *Query Parameters* (`?sort=asc`) direto para o `Context`.
-- [ ] **Bedrock TestContext (Server-less):** Um framework interno para injetar um `Context` simulado (Mock) nos Controladores, permitindo testes de integração instantâneos sem precisar alocar portas TCP no SO.
+  - *Conceito Ensinado:* Protocolos de Rede TCP/IP, Handshake HTTP 101 Switching Protocols e manipulação de fluxos binários.
+- [ ] **Anotação de Real-Time (`@BedrockSocket`):** Criar canais bidirecionais persistentes sobre Virtual Threads com consumo mínimo de memória.
+  - *Conceito Ensinado:* Concorrência leve com Project Loom para conexões de longa duração.
 
 ---
 
-## 🔮 Futuro (V3.0+) - *The "Persistence & Security" Vision*
-*Ideias de longo prazo para tornar o Bedrock viável para mini-projetos monolíticos de ponta a ponta.*
+## 🛡️ Versão 3.0 - *Segurança Prática*
+*Foco: Proteger rotas e autenticar usuários sem a complexidade do Spring Security.*
 
-- [ ] **Bedrock Data (ORM Minimalista):** Um wrapper educacional por cima da API JDBC nativa do Java.
-  - *Conceito Ensinado:* O padrão de projeto `ActiveRecord` e o funcionamento interno de Drivers SQL e Connection Pools.
-- [ ] **Security Pipeline Integrado:** Filtros nativos para JWT parsing.
-  - *Conceito Ensinado:* Criptografia simétrica/assimétrica nativa do Java (`java.security`), Hashing Seguro e RFC 7519.
+- [ ] **Autenticação via Token (JWT Nativo):** Gerador e validador de tokens JWT (RFC 7519) utilizando as APIs criptográficas nativas do JDK (`java.security`).
+  - *Conceito Ensinado:* Assinatura digital (HMAC-SHA256), cabeçalhos de autorização `Bearer` e proteção de recursos.
+- [ ] **Rate Limiter Nativo:** Controle de vazão de requisições por IP.
+  - *Conceito Ensinado:* Primitivas de concorrência do `java.util.concurrent` (`Semaphore`, `ReentrantLock` e algoritmo Token Bucket).
 
 ---
 
-## 🎓 V4.0 - *Advanced Engineering Concepts*
-*Para ir além do básico web e dominar os conceitos mais complexos (e assustadores) da JVM.*
+## 🎓 Versão 4.0 - *Engenharia Avançada da JVM*
+*Foco: Desmistificar as maiores mágicas do ecossistema corporativo.*
 
 - [ ] **Programação Orientada a Aspectos (AOP):** Introduzir suporte a anotações como `@BedrockTransactional` ou `@BedrockAsync`.
-  - *Conceito Ensinado:* Uso de `java.lang.reflect.Proxy` (Dynamic Proxies) para interceptar chamadas de métodos em tempo de execução — desmistificando como a maior "mágica" do Spring Boot funciona.
-- [ ] **Rate Limiter Nativo:** Controle de abusos (ex: máximo de 10 requests por segundo por IP).
-  - *Conceito Ensinado:* Primitivas avançadas de concorrência do Java `java.util.concurrent` (como `Semaphore`, `ReentrantLock` e o algoritmo de Token Bucket).
-- [ ] **Event Bus (Pub/Sub Interno):** Sistema de disparo de eventos assíncronos dentro da aplicação (ex: `app.publish(new UserCreatedEvent())`).
-  - *Conceito Ensinado:* O Design Pattern `Observer` acoplado ao poder de roteamento de filas em Virtual Threads.
-- [ ] **Bedrock Telemetry:** Um endpoint embutido `/bedrock/metrics` que expõe a saúde do servidor.
-  - *Conceito Ensinado:* Uso da API de `java.lang.management` (JMX) para ler o uso de Heap Memory, Garbage Collection e quantidade de Virtual Threads ativas em tempo real.
+  - *Conceito Ensinado:* Uso de `java.lang.reflect.Proxy` (Dynamic Proxies) para interceptar chamadas em tempo de execução.
+- [ ] **Event Bus Interno (Pub/Sub):** Sistema de disparo e escuta de eventos desacoplados dentro da aplicação.
+  - *Conceito Ensinado:* Design Pattern `Observer` acoplado a filas em Virtual Threads.
+- [ ] **Bedrock Telemetry (Métricas de Servidor):** Endpoint embutido `/bedrock/metrics` expondo a saúde do runtime.
+  - *Conceito Ensinado:* Uso da API `java.lang.management` (JMX) para monitorar Heap Memory, Garbage Collection e Threads ativas.
 
 ---
 
 ### Como contribuir?
-Se você tem interesse em aprender como a JVM funciona por baixo dos panos, escolha uma das *Issues* do nosso Roadmap, entenda qual *Conceito de Engenharia* ela propõe ensinar, faça um *Fork*, e submeta seu PR! O aprendizado é garantido.
+Se você quer aprender de verdade como a JVM funciona por baixo dos panos, escolha uma das metas do nosso Roadmap, entenda qual **Conceito de Engenharia** ela propõe ensinar, faça um Fork e envie seu Pull Request!
