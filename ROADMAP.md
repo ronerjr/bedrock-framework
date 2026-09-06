@@ -17,7 +17,7 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 ---
 
 ## 🛠️ Versão 1.2 - *A Vida Real da API (Validação & Robustez)*
-*Foco: Resolver as dores diárias de quem constrói APIs limpas e desacopladas.*
+*Foco: Resolver as dores diárias de quem constrói APIs limpas e desacopladas, mantendo o princípio de que **"Explícito é melhor do que implícito"**.*
 
 - [ ] **Validação Didática de Dados:** Métodos auxiliares no `Context` para extrair e validar entradas sem anotações mágicas (ex: `ctx.paramAsInt("id")`, `ctx.bodyAs(UserDto.class)` com retorno de erros amigáveis se campos obrigatórios faltarem).
   - *Conceito Ensinado:* Sanitização de dados de entrada e prevenção de `NumberFormatException`/`NullPointerException`.
@@ -26,8 +26,8 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
   - *Conceito Ensinado:* Princípio da Inversão de Dependência (SOLID) e facilidade de testes unitários com Mocks.
 - [ ] **Global Exception Handler Amigável:** Interceptador central para capturar exceções não tratadas e padronizar o JSON de erro (estilo Problem Details RFC 7807), eliminando `try/catch` repetitivos.
   - *Conceito Ensinado:* Centralized Error Handling e códigos de status HTTP semânticos (400, 404, 422, 500).
-- [ ] **Auto-Discovery (Classpath Component Scanning):** Varrer automaticamente o classpath na largada procurando por `@BedrockController` e `@BedrockComponent`.
-  - *Conceito Ensinado:* Reflection em nível de pacote (ClassLoader) para montagem dinâmica de grafos.
+
+> 💡 **Decisão de Design Pedagógica:** Mantemos o registro de componentes e rotas 100% explícito (`app.register(...)`), rejeitando *Auto-Discovery* ou escaneamento mágico de pacotes por padrão. O aluno deve sempre ser capaz de dar `Ctrl+Clique` e ver exatamente onde cada peça do sistema é instanciada e conectada.
 
 ---
 

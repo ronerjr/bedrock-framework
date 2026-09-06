@@ -21,8 +21,11 @@ public class Application {
         // 3. Simple programmatic route
         app.get("/api/ping", ctx -> ctx.ok("pong"));
 
-        // 4. Auto-discovery of Controllers & Start Engine
-        app.bindControllers(UserService.class, UserController.class)
+        // 4. Explicit Component Registration & Dependency Injection:
+        // Pass all components (Services, Controllers) to the engine.
+        // Bedrock builds the dependency graph, injects services via constructor,
+        // and routes HTTP endpoints automatically!
+        app.register(UserService.class, UserController.class)
            .start();
     }
 }

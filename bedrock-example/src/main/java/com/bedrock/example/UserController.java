@@ -43,7 +43,16 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: Routing and Path Variables
+     * 🎓 BEDROCK TUTORIAL: Explicit Control with the 'Context' Object
+     * 
+     * When you need fine-grained control over status codes (like 404 Not Found)
+     * or HTTP headers, accept `Context ctx` as your method parameter!
+     * 
+     * Notice the two ways to write Bedrock endpoints:
+     * 1. Declarative Mode (e.g. `listUsers` and `createUser`): Return Java Records/Lists directly.
+     *    Bedrock automatically serializes them to JSON with standard status codes (200 OK, 201 Created).
+     * 2. Full Control Mode (e.g. `findUser` and `updateUser`): Accept `Context ctx` to inspect
+     *    headers, path variables, query params, or return custom status codes (ctx.notFound(), ctx.noContent()).
      */
     @BedrockGet("/api/users/{id}")
     public void findUser(Context ctx) {
@@ -71,6 +80,9 @@ public class UserController {
 
     /**
      * 🎓 BEDROCK TUTORIAL: HTTP PUT with Path Variable and Request Body
+     * 
+     * You can combine path parameters (`ctx.pathParam("id")`) and body deserialization
+     * (`ctx.bodyAs(UpdateUserRequest.class)`) inside the same handler!
      */
     @BedrockPut("/api/users/{id}")
     public void updateUser(Context ctx) {
@@ -86,7 +98,10 @@ public class UserController {
     }
 
     /**
-     * 🎓 BEDROCK TUTORIAL: HTTP DELETE & 204 No Content
+     * 🎓 BEDROCK TUTORIAL: HTTP DELETE & Semantic Status Codes
+     * 
+     * Successful deletions typically return HTTP 204 No Content (via `ctx.noContent()`),
+     * because there is no response body to return. If the resource doesn't exist, return 404!
      */
     @BedrockDelete("/api/users/{id}")
     public void deleteUser(Context ctx) {

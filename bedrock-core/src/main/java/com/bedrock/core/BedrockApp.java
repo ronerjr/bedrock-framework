@@ -97,11 +97,13 @@ public class BedrockApp {
     }
 
     /**
-     * Registers classes (Controllers, Services) in the IoC Container and automatically binds
-     * methods annotated with @BedrockGet, @BedrockPost, @BedrockPut, @BedrockDelete, @BedrockPatch,
-     * transforming them into native routes in the Router.
+     * 🎓 BEDROCK TUTORIAL: Explicit Component Registration
+     * 
+     * Registers application classes (Services, Repositories, Controllers) in the IoC Container.
+     * Bedrock resolves constructor dependencies in topological order and maps any
+     * @BedrockController methods to HTTP routes.
      */
-    public BedrockApp bindControllers(Class<?>... classes) {
+    public BedrockApp register(Class<?>... classes) {
         // 1. Register all dependencies in the IoC engine
         container.register(classes);
         
@@ -130,8 +132,13 @@ public class BedrockApp {
                                 if (paramType.equals(Context.class)) {
                                     args[i] = ctx;
                                 } else {
-                                    // Automatic JSON body binding for DTO / Record / POJO parameters
-                                    args[i] = ctx.bodyAs(paramType);
+                                    // Auto-deserialization of Request Body to DTO
+                                    String body = ctx.body();
+                                    if (body == null || body.trim().isEmpty()) {
+                                        args[i] = null;
+                                    } else {
+                                        args[i] = BedrockJson.fromJson(body, paramType);
+                                    }
                                 }
                             }
 
@@ -163,12 +170,19 @@ public class BedrockApp {
                             );
                         }
                     };
-                    
+
                     router.addRoute(httpMethod, path, handler);
                 }
             }
         }
         return this;
+    }
+
+    /**
+     * Alias for {@link #register(Class[])}.
+     */
+    public BedrockApp bindControllers(Class<?>... classes) {
+        return register(classes);
     }
 
     private record RouteInfo(String httpMethod, String path) {}
