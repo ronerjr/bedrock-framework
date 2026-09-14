@@ -230,4 +230,19 @@ public class BedrockContainer {
         }
         return (T) bean;
     }
+
+    /**
+     * 🎓 BEDROCK TUTORIAL: Concise Bean Retrieval Alias
+     *
+     * <p>Retrieves a Singleton already managed by the container.
+     * Alias for {@link #getBean(Class)}.</p>
+     *
+     * @param clazz The class type to retrieve.
+     * @param <T>   The bean type.
+     * @return The managed singleton instance, or null if not registered.
+     */
+    public <T> T get(Class<T> clazz) {
+        return getBean(clazz);
+    }
 }
+

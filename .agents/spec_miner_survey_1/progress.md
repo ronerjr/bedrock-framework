@@ -1,0 +1,22 @@
+# Progress Log - spec_miner_survey_1
+
+- **Last visited**: 2026-09-11T03:59:00Z
+- **Status**: Completed RFC 6455 specification survey and handoff report.
+- **Completed**:
+  - Dispatch received and recorded in DISPATCH.md.
+  - BRIEFING.md initialized and updated.
+  - ORIGINAL_REQUEST.md reviewed in detail.
+  - Comprehensive specification survey written to `spec_survey.md` covering:
+    - HTTP 101 Handshake & Sec-WebSocket-Accept calculation (SHA-1 + Base64 + GUID) with RFC test vectors.
+    - Full 32-bit RFC 6455 frame anatomy, bit masks, and bit shifts.
+    - Directional masking rules (client MUST mask, server MUST NOT mask) and 1002 close rule.
+    - Payload length encodings (7-bit, 16-bit, 64-bit) and minimal byte encoding invariants.
+    - 4-byte XOR unmasking formula and Java implementation.
+    - Control frame rules (FIN=1, max length 125, interleaving).
+    - Close frame anatomy, status code registry (1000-1011, wire-forbidden codes), and UTF-8 rules.
+    - Ping/Pong frame handling and echo requirements.
+    - 🎓 BEDROCK TUTORIAL didactic explanations and diagrams.
+    - Discovered features table (19 features) and edge cases table (20 edge cases).
+    - Architectural recommendations for Bedrock v2.0.
+  - 5-Component handoff report written to `handoff.md`.
+- **Next Step**: Notify parent orchestrator.

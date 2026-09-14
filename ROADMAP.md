@@ -43,12 +43,12 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 
 ---
 
-## ⚡ Versão 2.0 - *Comunicação em Tempo Real (WebSockets)*
+## ✅ Versão 2.0 - *Comunicação em Tempo Real (WebSockets)* (Concluído)
 *Foco: Entender como o WhatsApp Web e chats funcionam por baixo dos panos.*
 
-- [ ] **Motor WebSockets (RFC 6455) do Zero:** Descer o nível para o `ServerSocketChannel` do Java NIO para manipular o Handshake TCP e o mascaramento de bits (Framing) dos WebSockets.
+- [x] **Motor WebSockets (RFC 6455) do Zero:** Descer o nível para o `ServerSocketChannel` do Java NIO para manipular o Handshake TCP e o mascaramento de bits (Framing) dos WebSockets.
   - *Conceito Ensinado:* Protocolos de Rede TCP/IP, Handshake HTTP 101 Switching Protocols e manipulação de fluxos binários.
-- [ ] **Anotação de Real-Time (`@BedrockSocket`):** Criar canais bidirecionais persistentes sobre Virtual Threads com consumo mínimo de memória.
+- [x] **Anotação de Real-Time (`@BedrockSocket`):** Criar canais bidirecionais persistentes sobre Virtual Threads com consumo mínimo de memória.
   - *Conceito Ensinado:* Concorrência leve com Project Loom para conexões de longa duração.
 
 ---

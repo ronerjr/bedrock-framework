@@ -1,0 +1,2 @@
+## 2026-09-11T13:09:32Z
+You are challenger_m3_2. Your working directory is c:\Users\roner\Documents\repo\bedrock-framework\.agents\challenger_m3_2. Read the instructions in DISPATCH.md and c:\Users\roner\Documents\repo\bedrock-framework\.agents\ORIGINAL_REQUEST.md. Empirically verify dual server coexistence, error propagation, registration order invariance, and failure modes. Output your verdict (APPROVE or REQUEST_CHANGES) in handoff.md. Message parent when done.

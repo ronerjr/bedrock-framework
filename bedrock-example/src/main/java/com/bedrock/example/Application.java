@@ -1,12 +1,22 @@
 package com.bedrock.example;
 
 import com.bedrock.core.BedrockApp;
+import com.bedrock.example.ws.ChatPlayground;
+import com.bedrock.example.ws.ChatWebSocket;
 import com.bedrock.jdbc.BedrockJdbc;
 
 public class Application {
 
-    public static void main(String[] args) {
-        BedrockApp app = BedrockApp.create(8080);
+    /**
+     * Factory method creating and configuring the Bedrock application instance.
+     * Parameterized ports allow clean ephemeral port allocation (port 0) during automated testing.
+     *
+     * @param httpPort HTTP server port (e.g. 8080, or 0 for dynamic ephemeral port).
+     * @param wsPort   WebSocket server port (e.g. 8081, or 0 for dynamic ephemeral port). Use -1 to disable WebSockets.
+     * @return Fully configured BedrockApp instance.
+     */
+    public static BedrockApp createApp(int httpPort, int wsPort) {
+        BedrockApp app = BedrockApp.create(httpPort);
         
         // 1. Before Middleware: Intercepts before the Handler
         app.before(ctx -> {
@@ -20,7 +30,7 @@ public class Application {
         });
 
         // 3. Simple programmatic route
-        app.get("/api/ping", ctx -> ctx.ok("pong"));
+        app.get("/api/ping", ctx -> ctx.text("pong"));
 
         // 4. Persistence Setup (V1.3 - Zero-Dependency JDBC):
         // Configure BedrockJdbc with a local SQLite database file ("bedrock.db")
@@ -44,11 +54,32 @@ public class Application {
             ));
         });
 
-        // 7. Explicit Component Registration & Dependency Injection:
-        // Bedrock builds the dependency graph:
+        // 7. Real-Time WebSockets Setup (V2.0 - RFC 6455 over Virtual Threads):
+        // Enable dedicated NIO WebSocket server on configured port with zero external dependencies.
+        if (wsPort >= 0) {
+            app.enableWebSockets(wsPort);
+        }
+
+        // 8. Serve Interactive Real-Time Chat Playground:
+        // Dark-themed HTML5/JS testing client communicating bidirectionally with ChatWebSocket.
+        app.get("/chat", ctx -> ctx.html(ChatPlayground.getHtml(app.getWebSocketPort(), "/chat")));
+
+        // 9. Explicit Component Registration & Dependency Injection:
+        // Bedrock builds the dependency graph and registers both HTTP controllers and WebSocket endpoints:
         // UserController -> IUserService (UserService) -> IUserRepository (SqliteUserRepository) -> BedrockJdbc
-        app.register(SqliteUserRepository.class, UserService.class, UserController.class)
-           .start();
+        // ChatWebSocket  -> Registered as @BedrockSocket("/chat") on the WebSocket engine
+        app.register(
+                SqliteUserRepository.class,
+                UserService.class,
+                UserController.class,
+                ChatWebSocket.class
+        );
+
+        return app;
+    }
+
+    public static void main(String[] args) {
+        createApp(8080, 8081).start();
     }
 
     private static void seedInitialData(BedrockJdbc db) {

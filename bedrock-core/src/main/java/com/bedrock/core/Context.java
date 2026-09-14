@@ -242,6 +242,12 @@ public class Context {
         this.contentType = "text/html";
     }
 
+    public void text(String content) {
+        this.statusCode = 200;
+        this.responseBody = content;
+        this.contentType = "text/plain";
+    }
+
     /**
      * Flushes the buffered state to the actual network stream.
      * This is exclusively called by the BedrockApp orchestrator at the very end of the pipeline.
@@ -250,7 +256,7 @@ public class Context {
         String responseContent = "";
         
         if (responseBody != null) {
-            if ("text/html".equals(contentType)) {
+            if ("text/html".equals(contentType) || "text/plain".equals(contentType)) {
                 responseContent = (String) responseBody;
             } else {
                 responseContent = BedrockJson.toJson(responseBody);
