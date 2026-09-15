@@ -15,13 +15,14 @@ Bedrock Java is a minimalist, educational web framework built from scratch in **
 
 We strictly enforce **Zero runtime dependencies**. No Spring, no Tomcat, no Netty, no Jackson, no SLF4J. Everything you see is built using fundamental Java standard library building blocks. If you master Bedrock, you master the JVM.
 
-### ✨ GitHub Pages & Interactive Documentation
-Bedrock comes with a built-in Interactive Playground and Landing Page located in the `docs/` folder.
-**To host it on GitHub Pages:**
-1. Go to your repository **Settings** > **Pages**.
-2. Set the source to **Deploy from a branch**.
-3. Select your `main` branch and the `/docs` folder.
-4. Save! Your interactive documentation is now live and accessible to the world.
+### 🏛️ Architectural Committee & Canon Literature
+Every design decision in Bedrock is reviewed by our **[Architectural Committee](docs/ARCHITECTURAL_COMMITTEE.md)** across 4 core seats:
+- **JVM, Concurrency & Low-Level** (Brian Goetz, JEP 444 Loom, JVM Spec)
+- **Software Design & SOLID** (GoF, Uncle Bob, Joshua Bloch)
+- **Networking Protocols & IETF** (RFC 6455 WebSockets, RFC 9110 HTTP/1.1, RFC 7807)
+- **Technical Pedagogy & DevExperience** (John Ousterhout, Zero-Magic Principle)
+
+See our [Architectural Decision Records (ADRs)](docs/adr/) for documented trade-offs.
 
 ---
 
