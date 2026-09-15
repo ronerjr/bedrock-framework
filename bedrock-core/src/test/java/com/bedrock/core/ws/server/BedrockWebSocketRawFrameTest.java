@@ -717,6 +717,11 @@ public class BedrockWebSocketRawFrameTest {
                 establishHandshake(socketA, server.getPort(), "/concurrency-interleave");
                 establishHandshake(socketB, server.getPort(), "/concurrency-interleave");
 
+                // Wait briefly for both virtual threads to complete registration in the registry
+                long deadline = System.currentTimeMillis() + 3000;
+                while (server.getSessionRegistry().size() < 2 && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(10);
+                }
                 assertEquals(2, server.getSessionRegistry().size(), "Both sessions must be registered");
 
                 BedrockWebSocketSession sessionA = null;

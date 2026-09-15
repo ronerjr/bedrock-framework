@@ -458,9 +458,12 @@ public class ChatWebSocketAdversarialTest {
 
         MockSession healthy1 = new MockSession("healthy-1");
         MockSession faulty = new MockSession("faulty-2") {
+            private boolean fail = false;
             @Override
             public void send(String message) {
-                throw new IllegalStateException("Broken pipe connection simulation");
+                if (fail) {
+                    throw new IllegalStateException("Broken pipe connection simulation");
+                }
             }
         };
         MockSession healthy2 = new MockSession("healthy-3");
@@ -468,6 +471,15 @@ public class ChatWebSocketAdversarialTest {
         chatWebSocket.onOpen(healthy1);
         chatWebSocket.onOpen(faulty);
         chatWebSocket.onOpen(healthy2);
+
+        // Arm the fault trigger for subsequent broadcast
+        try {
+            java.lang.reflect.Field failField = faulty.getClass().getDeclaredField("fail");
+            failField.setAccessible(true);
+            failField.set(faulty, true);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         assertEquals(3, chatWebSocket.getConnectedCount());
 
