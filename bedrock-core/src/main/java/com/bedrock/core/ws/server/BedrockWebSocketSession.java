@@ -3,6 +3,7 @@ package com.bedrock.core.ws.server;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -77,6 +78,36 @@ public interface BedrockWebSocketSession extends AutoCloseable {
      * @return Endpoint route path string.
      */
     String getPath();
+
+    /**
+     * Returns an unmodifiable map of query parameters passed in the initial HTTP upgrade request URL.
+     * (e.g. {@code /chat?token=xyz&room=dev} -&gt; {@code {"token": "xyz", "room": "dev"}}).
+     *
+     * @return Map of query parameter names and values.
+     */
+    default Map<String, String> getQueryParams() {
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Retrieves a query parameter by name from the initial HTTP upgrade request URL.
+     *
+     * @param name The parameter name.
+     * @return The parameter value, or null if absent.
+     */
+    default String getQueryParam(String name) {
+        return getQueryParams().get(name);
+    }
+
+    /**
+     * Returns the negotiated subprotocol confirmed during handshake via {@code Sec-WebSocket-Protocol},
+     * or null if no subprotocol was negotiated.
+     *
+     * @return The negotiated subprotocol identifier, or null.
+     */
+    default String getSubprotocol() {
+        return null;
+    }
 
     /**
      * Checks whether the underlying connection is active and ready for frame transmission.

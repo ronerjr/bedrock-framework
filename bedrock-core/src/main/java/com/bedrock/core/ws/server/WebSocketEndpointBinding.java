@@ -71,6 +71,43 @@ public interface WebSocketEndpointBinding {
     void invokeOnError(BedrockWebSocketSession session, Throwable throwable);
 
     /**
+     * Returns the array of supported application-level subprotocols for this endpoint.
+     * Defaults to an empty array.
+     *
+     * @return Array of supported subprotocol strings.
+     */
+    default String[] getSubprotocols() {
+        return new String[0];
+    }
+
+    /**
+     * Negotiates a subprotocol given the comma-separated client requested subprotocols header.
+     * Returns the first matching subprotocol, or null if no match or none supported.
+     *
+     * @param requestedSubprotocolsHeader The client's Sec-WebSocket-Protocol header.
+     * @return The matched subprotocol, or null.
+     */
+    default String negotiateSubprotocol(String requestedSubprotocolsHeader) {
+        if (requestedSubprotocolsHeader == null || requestedSubprotocolsHeader.isBlank()) {
+            return null;
+        }
+        String[] supported = getSubprotocols();
+        if (supported == null || supported.length == 0) {
+            return null;
+        }
+        String[] requested = requestedSubprotocolsHeader.split(",");
+        for (String req : requested) {
+            String candidate = req.trim();
+            for (String sup : supported) {
+                if (sup != null && sup.equalsIgnoreCase(candidate)) {
+                    return sup;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Creates a new fluent builder for functional (lambda-based) endpoint bindings.
      *
      * @return A new {@link FunctionalEndpointBinding.Builder}.
@@ -94,7 +131,19 @@ public interface WebSocketEndpointBinding {
                                                 Method onMessageMethod,
                                                 Method onCloseMethod,
                                                 Method onErrorMethod) {
-        return new ReflectiveEndpointBinding(targetInstance, onOpenMethod, onMessageMethod, onCloseMethod, onErrorMethod);
+        return new ReflectiveEndpointBinding(targetInstance, onOpenMethod, onMessageMethod, onCloseMethod, onErrorMethod, new String[0]);
+    }
+
+    /**
+     * Creates a reflective endpoint binding with explicit subprotocols.
+     */
+    static ReflectiveEndpointBinding reflective(Object targetInstance,
+                                                Method onOpenMethod,
+                                                Method onMessageMethod,
+                                                Method onCloseMethod,
+                                                Method onErrorMethod,
+                                                String[] subprotocols) {
+        return new ReflectiveEndpointBinding(targetInstance, onOpenMethod, onMessageMethod, onCloseMethod, onErrorMethod, subprotocols);
     }
 
     // =========================================================================
@@ -111,17 +160,28 @@ public interface WebSocketEndpointBinding {
         private final Method onMessageMethod;
         private final Method onCloseMethod;
         private final Method onErrorMethod;
+        private final String[] subprotocols;
 
         public ReflectiveEndpointBinding(Object targetInstance,
                                         Method onOpenMethod,
                                         Method onMessageMethod,
                                         Method onCloseMethod,
                                         Method onErrorMethod) {
+            this(targetInstance, onOpenMethod, onMessageMethod, onCloseMethod, onErrorMethod, new String[0]);
+        }
+
+        public ReflectiveEndpointBinding(Object targetInstance,
+                                        Method onOpenMethod,
+                                        Method onMessageMethod,
+                                        Method onCloseMethod,
+                                        Method onErrorMethod,
+                                        String[] subprotocols) {
             this.targetInstance = Objects.requireNonNull(targetInstance, "Target instance cannot be null");
             this.onOpenMethod = makeAccessible(onOpenMethod);
             this.onMessageMethod = makeAccessible(onMessageMethod);
             this.onCloseMethod = makeAccessible(onCloseMethod);
             this.onErrorMethod = makeAccessible(onErrorMethod);
+            this.subprotocols = subprotocols != null ? subprotocols.clone() : new String[0];
         }
 
         private static Method makeAccessible(Method m) {
@@ -203,6 +263,11 @@ public interface WebSocketEndpointBinding {
             return args;
         }
 
+        @Override
+        public String[] getSubprotocols() {
+            return subprotocols.clone();
+        }
+
         public Object getTargetInstance() {
             return targetInstance;
         }
@@ -226,16 +291,23 @@ public interface WebSocketEndpointBinding {
         private final BiConsumer<BedrockWebSocketSession, String> onMessage;
         private final TriConsumer<BedrockWebSocketSession, Integer, String> onClose;
         private final BiConsumer<BedrockWebSocketSession, Throwable> onError;
+        private final String[] subprotocols;
 
         private FunctionalEndpointBinding(Builder builder) {
             this.onOpen = builder.onOpen;
             this.onMessage = builder.onMessage;
             this.onClose = builder.onClose;
             this.onError = builder.onError;
+            this.subprotocols = builder.subprotocols != null ? builder.subprotocols.clone() : new String[0];
         }
 
         public static Builder builder() {
             return new Builder();
+        }
+
+        @Override
+        public String[] getSubprotocols() {
+            return subprotocols.clone();
         }
 
         @Override
@@ -263,6 +335,12 @@ public interface WebSocketEndpointBinding {
             private BiConsumer<BedrockWebSocketSession, String> onMessage;
             private TriConsumer<BedrockWebSocketSession, Integer, String> onClose;
             private BiConsumer<BedrockWebSocketSession, Throwable> onError;
+            private String[] subprotocols = new String[0];
+
+            public Builder subprotocols(String... subprotocols) {
+                this.subprotocols = subprotocols != null ? subprotocols : new String[0];
+                return this;
+            }
 
             public Builder onOpen(Consumer<BedrockWebSocketSession> handler) {
                 this.onOpen = handler;

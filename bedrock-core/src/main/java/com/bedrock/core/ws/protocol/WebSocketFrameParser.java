@@ -94,7 +94,7 @@ public final class WebSocketFrameParser {
      * @throws WebSocketException If an RFC 6455 protocol violation or encoding error occurs.
      */
     public static WebSocketFrame parse(ByteBuffer buffer) throws WebSocketException {
-        return parse(buffer, true);
+        return parse(buffer, true, MAX_ALLOWED_PAYLOAD_SIZE);
     }
 
     /**
@@ -106,6 +106,19 @@ public final class WebSocketFrameParser {
      * @throws WebSocketException If an RFC 6455 protocol violation occurs.
      */
     public static WebSocketFrame parse(ByteBuffer buffer, boolean requireMask) throws WebSocketException {
+        return parse(buffer, requireMask, MAX_ALLOWED_PAYLOAD_SIZE);
+    }
+
+    /**
+     * Parses the next complete {@link WebSocketFrame} from the buffer with a configurable maximum payload size.
+     *
+     * @param buffer         The NIO buffer containing raw frame bytes.
+     * @param requireMask    True if client masking is strictly enforced (server mode).
+     * @param maxPayloadSize Maximum allowed frame payload size in bytes.
+     * @return The parsed {@link WebSocketFrame}, or null if the buffer does not yet contain a complete frame.
+     * @throws WebSocketException If an RFC 6455 protocol violation occurs or payload exceeds maxPayloadSize.
+     */
+    public static WebSocketFrame parse(ByteBuffer buffer, boolean requireMask, int maxPayloadSize) throws WebSocketException {
         if (buffer == null || buffer.remaining() < 2) {
             return null;
         }
@@ -167,6 +180,12 @@ public final class WebSocketFrameParser {
                         "Non-minimal 16-bit payload length encoding: " + extLen + " (must be >= 126)"
                 );
             }
+            if (extLen > maxPayloadSize) {
+                throw new WebSocketException(
+                        WebSocketCloseStatus.MESSAGE_TOO_BIG_CODE,
+                        "Payload length " + extLen + " exceeds maximum allowed (" + maxPayloadSize + ")"
+                );
+            }
             payloadLength = extLen;
         } else { // lenIndicator == 127
             if (buffer.remaining() < 8) {
@@ -192,10 +211,10 @@ public final class WebSocketFrameParser {
             }
 
             // Protection against excessive memory allocation
-            if (extLen > MAX_ALLOWED_PAYLOAD_SIZE) {
+            if (extLen > maxPayloadSize) {
                 throw new WebSocketException(
                         WebSocketCloseStatus.MESSAGE_TOO_BIG_CODE,
-                        "Payload length " + extLen + " exceeds maximum allowed (" + MAX_ALLOWED_PAYLOAD_SIZE + ")"
+                        "Payload length " + extLen + " exceeds maximum allowed (" + maxPayloadSize + ")"
                 );
             }
             payloadLength = extLen;

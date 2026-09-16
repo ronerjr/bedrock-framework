@@ -117,4 +117,15 @@ public @interface BedrockSocket {
      * @return The URI route path.
      */
     String path() default "";
+
+    /**
+     * 🎓 BEDROCK TUTORIAL: RFC 6455 §1.9 Subprotocol Negotiation
+     *
+     * <p>Optional list of supported application-level subprotocols (e.g., "chat.v1", "json.v2").
+     * If specified, when a client requests subprotocols via {@code Sec-WebSocket-Protocol},
+     * the server matches against this list and confirms the selected subprotocol in the HTTP 101 response.</p>
+     *
+     * @return Array of supported subprotocol identifiers.
+     */
+    String[] subprotocols() default {};
 }

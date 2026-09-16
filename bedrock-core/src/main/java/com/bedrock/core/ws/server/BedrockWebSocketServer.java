@@ -12,6 +12,7 @@ import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -99,13 +100,19 @@ public class BedrockWebSocketServer implements AutoCloseable {
     private final Map<String, WebSocketEndpointBinding> routes = new ConcurrentHashMap<>();
     private final WebSocketSessionRegistry sessionRegistry = new WebSocketSessionRegistry();
     private final WebSocketClientHandler clientHandler;
+    private final int maxPayloadSize;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private volatile ServerSocketChannel serverChannel;
     private volatile Thread acceptThread;
+    private volatile Thread heartbeatThread;
     private volatile int boundPort;
+
+    // Heartbeat configuration
+    private volatile Duration heartbeatInterval = null;
+    private final AtomicBoolean heartbeatRunning = new AtomicBoolean(false);
 
     /**
      * Creates a WebSocket server configured for localhost and the specified port.
@@ -114,7 +121,7 @@ public class BedrockWebSocketServer implements AutoCloseable {
      * @param port Port number (0 for ephemeral).
      */
     public BedrockWebSocketServer(int port) {
-        this("0.0.0.0", port);
+        this("0.0.0.0", port, WebSocketClientHandler.DEFAULT_MAX_PAYLOAD_SIZE);
     }
 
     /**
@@ -124,10 +131,48 @@ public class BedrockWebSocketServer implements AutoCloseable {
      * @param port Port number (0 for ephemeral).
      */
     public BedrockWebSocketServer(String host, int port) {
+        this(host, port, WebSocketClientHandler.DEFAULT_MAX_PAYLOAD_SIZE);
+    }
+
+    /**
+     * Creates a WebSocket server configured for a specific bind host, port, and maximum frame payload size.
+     *
+     * @param host           Bind host (e.g. "0.0.0.0" or "127.0.0.1").
+     * @param port           Port number (0 for ephemeral).
+     * @param maxPayloadSize Maximum allowed frame payload size in bytes.
+     */
+    public BedrockWebSocketServer(String host, int port, int maxPayloadSize) {
         this.host = (host == null || host.isBlank()) ? "0.0.0.0" : host.trim();
         this.configuredPort = port;
         this.boundPort = port;
-        this.clientHandler = new WebSocketClientHandler(this.routes, this.sessionRegistry);
+        this.maxPayloadSize = maxPayloadSize > 0 ? maxPayloadSize : WebSocketClientHandler.DEFAULT_MAX_PAYLOAD_SIZE;
+        this.clientHandler = new WebSocketClientHandler(this.routes, this.sessionRegistry, this.maxPayloadSize);
+    }
+
+    /**
+     * Enables automatic server-to-client RFC 6455 Ping heartbeat keep-alive.
+     * When running, a background Virtual Thread periodically broadcasts a Ping frame
+     * to all active sessions in the registry.
+     *
+     * @param interval Interval duration between Ping probes (must be positive).
+     * @return This server instance for fluent chaining.
+     */
+    public BedrockWebSocketServer enableHeartbeat(Duration interval) {
+        Objects.requireNonNull(interval, "Heartbeat interval cannot be null");
+        if (interval.isNegative() || interval.isZero()) {
+            throw new IllegalArgumentException("Heartbeat interval must be positive");
+        }
+        this.heartbeatInterval = interval;
+        return this;
+    }
+
+    /**
+     * Returns the configured maximum frame payload size in bytes.
+     *
+     * @return Max payload size in bytes.
+     */
+    public int getMaxPayloadSize() {
+        return maxPayloadSize;
     }
 
     /**
@@ -249,6 +294,14 @@ public class BedrockWebSocketServer implements AutoCloseable {
                     .name("ws-accept-" + boundPort)
                     .start(this::acceptLoop);
 
+            // Start Heartbeat keep-alive thread if configured
+            if (heartbeatInterval != null && heartbeatRunning.compareAndSet(false, true)) {
+                heartbeatThread = Thread.ofVirtual()
+                        .name("ws-heartbeat-" + boundPort)
+                        .start(this::heartbeatLoop);
+                BedrockLogger.info("WS-SERVER", "Heartbeat keep-alive enabled with interval: " + heartbeatInterval);
+            }
+
             BedrockLogger.info("WS-SERVER", "🦖 Bedrock WebSocket Server listening on " + host + ":" + boundPort);
         }
     }
@@ -259,6 +312,12 @@ public class BedrockWebSocketServer implements AutoCloseable {
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
             BedrockLogger.info("WS-SERVER", "Stopping WebSocket server on port " + boundPort + "...");
+
+            // 0. Stop heartbeat loop
+            heartbeatRunning.set(false);
+            if (heartbeatThread != null) {
+                heartbeatThread.interrupt();
+            }
 
             // 1. Close ServerSocketChannel to unblock accept()
             if (serverChannel != null) {
@@ -337,6 +396,34 @@ public class BedrockWebSocketServer implements AutoCloseable {
                     break;
                 }
                 BedrockLogger.error("WS-SERVER", "Fatal error in accept loop: " + t.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Periodic heartbeat loop running on a dedicated Virtual Thread.
+     * Probes all active sessions with RFC 6455 Ping frames.
+     */
+    private void heartbeatLoop() {
+        byte[] pingPayload = "bedrock-ping".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        while (heartbeatRunning.get() && running.get()) {
+            try {
+                Thread.sleep(heartbeatInterval.toMillis());
+            } catch (InterruptedException e) {
+                break;
+            }
+            if (!heartbeatRunning.get() || !running.get()) {
+                break;
+            }
+
+            for (BedrockWebSocketSession session : sessionRegistry.getAll()) {
+                if (session.isOpen()) {
+                    try {
+                        session.sendPing(pingPayload);
+                    } catch (Exception e) {
+                        BedrockLogger.warn("WS-HEARTBEAT", "Failed to send ping to session " + session.getId() + ": " + e.getMessage());
+                    }
+                }
             }
         }
     }

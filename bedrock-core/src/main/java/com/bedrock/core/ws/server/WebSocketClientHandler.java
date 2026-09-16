@@ -90,21 +90,36 @@ public class WebSocketClientHandler {
 
     private static final AtomicLong CLIENT_COUNTER = new AtomicLong(1);
     private static final int INITIAL_BUFFER_SIZE = 8192; // 8 KB
-    private static final int MAX_BUFFER_SIZE = WebSocketFrameParser.MAX_ALLOWED_PAYLOAD_SIZE; // 16 MB
+    public static final int DEFAULT_MAX_PAYLOAD_SIZE = 1024 * 1024; // 1 MB default (RFC 6455 DoS protection)
 
     private final Map<String, WebSocketEndpointBinding> routes;
     private final WebSocketSessionRegistry sessionRegistry;
+    private final int maxPayloadSize;
 
     /**
-     * Constructs a new {@code WebSocketClientHandler}.
+     * Constructs a new {@code WebSocketClientHandler} with default max payload size (1 MB).
      *
      * @param routes          Thread-safe route map of registered endpoints.
      * @param sessionRegistry Session registry tracking active connections.
      */
     public WebSocketClientHandler(Map<String, WebSocketEndpointBinding> routes,
                                   WebSocketSessionRegistry sessionRegistry) {
+        this(routes, sessionRegistry, DEFAULT_MAX_PAYLOAD_SIZE);
+    }
+
+    /**
+     * Constructs a new {@code WebSocketClientHandler} with explicit max payload size.
+     *
+     * @param routes          Thread-safe route map of registered endpoints.
+     * @param sessionRegistry Session registry tracking active connections.
+     * @param maxPayloadSize  Maximum allowed frame payload size in bytes.
+     */
+    public WebSocketClientHandler(Map<String, WebSocketEndpointBinding> routes,
+                                  WebSocketSessionRegistry sessionRegistry,
+                                  int maxPayloadSize) {
         this.routes = routes;
         this.sessionRegistry = sessionRegistry;
+        this.maxPayloadSize = maxPayloadSize > 0 ? maxPayloadSize : DEFAULT_MAX_PAYLOAD_SIZE;
     }
 
     /**
@@ -190,13 +205,26 @@ public class WebSocketClientHandler {
             }
 
             // -----------------------------------------------------------------
+            // Subprotocol Negotiation
+            // -----------------------------------------------------------------
+            String requestedSubprotocols = handshakeResult.requestedSubprotocols();
+            String negotiatedSubprotocol = binding.negotiateSubprotocol(requestedSubprotocols);
+
+            // -----------------------------------------------------------------
             // Upgrade Negotiated: Send HTTP 101 Switching Protocols
             // -----------------------------------------------------------------
-            writeFully(channel, ByteBuffer.wrap(handshakeResult.responseBytes()));
+            byte[] responseBytes;
+            if (negotiatedSubprotocol != null) {
+                responseBytes = WebSocketHandshake.createHandshakeResponse(handshakeResult.acceptKey(), negotiatedSubprotocol);
+            } else {
+                responseBytes = handshakeResult.responseBytes();
+            }
+            writeFully(channel, ByteBuffer.wrap(responseBytes));
 
-            // Construct and register session
+            // Construct and register session with query params and subprotocol
             StandardWebSocketSession session = new StandardWebSocketSession(
-                    sessionId, channel, path, sessionRegistry
+                    sessionId, channel, path, sessionRegistry,
+                    handshakeResult.queryParams(), negotiatedSubprotocol
             );
             sessionRegistry.register(session);
 
@@ -249,7 +277,7 @@ public class WebSocketClientHandler {
             WebSocketFrame frame = null;
 
             try {
-                frame = WebSocketFrameParser.parse(buffer);
+                frame = WebSocketFrameParser.parse(buffer, true, maxPayloadSize);
             } catch (WebSocketException protocolEx) {
                 handleProtocolException(channel, session, binding, protocolEx);
                 return;
@@ -272,12 +300,12 @@ public class WebSocketClientHandler {
 
             // Resize buffer if full but still unable to parse a complete frame
             if (!buffer.hasRemaining()) {
-                if (buffer.capacity() >= MAX_BUFFER_SIZE) {
+                if (buffer.capacity() >= maxPayloadSize) {
                     handleProtocolException(channel, session, binding,
                             new WebSocketException(WebSocketCloseStatus.MESSAGE_TOO_BIG_CODE, "Frame exceeds max payload size"));
                     return;
                 }
-                int newCap = Math.min(buffer.capacity() * 2, MAX_BUFFER_SIZE);
+                int newCap = Math.min(buffer.capacity() * 2, maxPayloadSize);
                 ByteBuffer larger = ByteBuffer.allocate(newCap);
                 buffer.flip();
                 larger.put(buffer);
@@ -351,7 +379,7 @@ public class WebSocketClientHandler {
                 }
                 byte[] p = frame.getPayload();
                 fragmentBuffer.write(p, 0, p.length);
-                if (fragmentBuffer.size() > MAX_BUFFER_SIZE) {
+                if (fragmentBuffer.size() > maxPayloadSize) {
                     handleProtocolException(channel, session, binding,
                             new WebSocketException(WebSocketCloseStatus.MESSAGE_TOO_BIG_CODE, "Fragmented message exceeds maximum allowed payload size"));
                     return false;

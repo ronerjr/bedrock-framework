@@ -582,6 +582,13 @@ public class BedrockApp implements AutoCloseable {
                     BedrockLogger.warn("WS-SERVER", "Error stopping WebSocket server: " + e.getMessage());
                 }
             }
+
+            // Teardown IoC managed beans with @BedrockDestroy in reverse order
+            try {
+                container.destroy();
+            } catch (Exception e) {
+                BedrockLogger.warn("BEDROCK-IOC", "Error during container teardown: " + e.getMessage());
+            }
         }
     }
 

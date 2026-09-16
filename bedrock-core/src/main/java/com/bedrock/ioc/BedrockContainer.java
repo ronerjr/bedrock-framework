@@ -4,11 +4,15 @@ import com.bedrock.core.BedrockLogger;
 import com.bedrock.exception.BedrockException;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The heart of the Bedrock Java Inversion of Control (IoC) Engine.
@@ -22,6 +26,8 @@ public class BedrockContainer {
     private final ConcurrentHashMap<Class<?>, Object> beans = new ConcurrentHashMap<>();
     private final Set<Class<?>> registeredClasses = new HashSet<>();
     private final ConcurrentHashMap<Class<?>, Class<?>> interfaceBindings = new ConcurrentHashMap<>();
+    private final List<Object> beanLifecycleOrder = new CopyOnWriteArrayList<>();
+    private final Set<Object> initializedBeans = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * 🎓 BEDROCK TUTORIAL: Dependency Inversion Principle (SOLID 'D')
@@ -64,7 +70,9 @@ public class BedrockContainer {
         }
         beans.put(type, instance);
         registeredClasses.add(type);
+        beanLifecycleOrder.add(instance);
         BedrockLogger.info("BEDROCK-IOC", "Mapped instance bean: '" + type.getSimpleName() + "'");
+        invokeInitMethods(instance);
         return this;
     }
 
@@ -191,10 +199,15 @@ public class BedrockContainer {
             // 4. Instantiate and register the bean
             Object instance = targetConstructor.newInstance(resolvedArgs);
             beans.put(clazz, instance);
+            beanLifecycleOrder.add(instance);
             
             BedrockLogger.info("BEDROCK-IOC", "Mapped bean: '" + clazz.getSimpleName() + "'");
             
             resolving.remove(clazz);
+
+            // 5. Lifecycle hook: @BedrockInit (invoked after dependency injection)
+            invokeInitMethods(instance);
+
             return instance;
 
         } catch (BedrockException e) {
@@ -243,6 +256,90 @@ public class BedrockContainer {
      */
     public <T> T get(Class<T> clazz) {
         return getBean(clazz);
+    }
+
+    /**
+     * 🎓 BEDROCK TUTORIAL: Lifecycle — Post-Construction Execution
+     *
+     * <p>Scans the instantiated bean for methods annotated with {@link BedrockInit}.
+     * Executes each init method, ensuring zero-parameter convention and proper error diagnostics.</p>
+     *
+     * @param instance The newly instantiated singleton bean.
+     */
+    private void invokeInitMethods(Object instance) {
+        if (instance == null || !initializedBeans.add(instance)) {
+            return;
+        }
+
+        Class<?> clazz = instance.getClass();
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(BedrockInit.class)) {
+                if (method.getParameterCount() != 0) {
+                    throw new BedrockException(
+                        "@BedrockInit method '" + method.getName() + "' in '" + clazz.getSimpleName() + "' must take 0 parameters.",
+                        "Remove parameters from the @BedrockInit method. Dependencies should be injected via constructor instead."
+                    );
+                }
+                try {
+                    method.setAccessible(true);
+                    method.invoke(instance);
+                    BedrockLogger.info("BEDROCK-IOC", "Executed @BedrockInit on: " + clazz.getSimpleName() + "." + method.getName() + "()");
+                } catch (Exception e) {
+                    Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+                    throw new BedrockException(
+                        "Failed to execute @BedrockInit method '" + method.getName() + "' on '" + clazz.getSimpleName() + "': " + cause.getMessage(),
+                        "Review your initialization logic in " + clazz.getSimpleName() + "." + method.getName() + "().",
+                        cause
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * 🎓 BEDROCK TUTORIAL: Lifecycle — Pre-Destruction Teardown
+     *
+     * <p>Executes {@link BedrockDestroy} methods on all managed singleton beans in
+     * <b>reverse topological order</b>: dependents are torn down before dependencies.</p>
+     */
+    public void destroy() {
+        // Reverse iteration: tear down newer dependents before foundational dependencies
+        List<Object> reversed = new java.util.ArrayList<>(beanLifecycleOrder);
+        Collections.reverse(reversed);
+
+        for (Object instance : reversed) {
+            invokeDestroyMethods(instance);
+        }
+
+        beanLifecycleOrder.clear();
+        initializedBeans.clear();
+        beans.clear();
+        registeredClasses.clear();
+        interfaceBindings.clear();
+    }
+
+    private void invokeDestroyMethods(Object instance) {
+        if (instance == null) {
+            return;
+        }
+
+        Class<?> clazz = instance.getClass();
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(BedrockDestroy.class)) {
+                if (method.getParameterCount() != 0) {
+                    BedrockLogger.warn("BEDROCK-IOC", "@BedrockDestroy method '" + method.getName() + "' in '" + clazz.getSimpleName() + "' must have 0 parameters. Skipping.");
+                    continue;
+                }
+                try {
+                    method.setAccessible(true);
+                    method.invoke(instance);
+                    BedrockLogger.info("BEDROCK-IOC", "Executed @BedrockDestroy on: " + clazz.getSimpleName() + "." + method.getName() + "()");
+                } catch (Exception e) {
+                    Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+                    BedrockLogger.error("BEDROCK-IOC", "Error executing @BedrockDestroy on " + clazz.getSimpleName() + "." + method.getName() + "(): " + cause.getMessage());
+                }
+            }
+        }
     }
 }
 

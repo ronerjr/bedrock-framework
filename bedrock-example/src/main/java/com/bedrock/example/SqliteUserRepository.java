@@ -36,8 +36,11 @@ public class SqliteUserRepository implements IUserRepository {
 
     /**
      * Bootstraps the schema automatically if the table does not exist.
+     * Invoked deterministically via @BedrockInit post-construction lifecycle hook
+     * in IoC containers, or directly during manual instantiation in unit tests.
      */
-    private void initTable() {
+    @com.bedrock.ioc.BedrockInit
+    public void initTable() {
         db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

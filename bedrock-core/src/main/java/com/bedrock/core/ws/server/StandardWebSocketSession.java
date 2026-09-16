@@ -64,6 +64,8 @@ public class StandardWebSocketSession implements BedrockWebSocketSession {
     private final String path;
     private final SocketAddress remoteAddress;
     private final WebSocketSessionRegistry registry;
+    private final Map<String, String> queryParams;
+    private final String subprotocol;
 
     /**
      * ReentrantLock guarantees thread safety without carrier thread pinning in Java 21 Loom.
@@ -84,10 +86,31 @@ public class StandardWebSocketSession implements BedrockWebSocketSession {
                                    SocketChannel channel,
                                    String path,
                                    WebSocketSessionRegistry registry) {
+        this(id, channel, path, registry, Collections.emptyMap(), null);
+    }
+
+    /**
+     * Constructs a new {@code StandardWebSocketSession} with query parameters and subprotocol.
+     *
+     * @param id          Unique session identifier.
+     * @param channel     Underlying Java NIO SocketChannel.
+     * @param path        Normalized endpoint URI path.
+     * @param registry    Session registry tracking active connections.
+     * @param queryParams Parsed query parameters from the HTTP upgrade request URL.
+     * @param subprotocol Negotiated subprotocol, or null.
+     */
+    public StandardWebSocketSession(String id,
+                                   SocketChannel channel,
+                                   String path,
+                                   WebSocketSessionRegistry registry,
+                                   Map<String, String> queryParams,
+                                   String subprotocol) {
         this.id = Objects.requireNonNull(id, "Session id cannot be null");
         this.channel = Objects.requireNonNull(channel, "SocketChannel cannot be null");
         this.path = Objects.requireNonNull(path, "Path cannot be null");
         this.registry = registry;
+        this.queryParams = queryParams != null ? Collections.unmodifiableMap(new ConcurrentHashMap<>(queryParams)) : Collections.emptyMap();
+        this.subprotocol = subprotocol;
 
         SocketAddress addr = null;
         try {
@@ -112,6 +135,22 @@ public class StandardWebSocketSession implements BedrockWebSocketSession {
     @Override
     public String getPath() {
         return path;
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+        return queryParams;
+    }
+
+    @Override
+    public String getQueryParam(String name) {
+        if (name == null) return null;
+        return queryParams.get(name);
+    }
+
+    @Override
+    public String getSubprotocol() {
+        return subprotocol;
     }
 
     @Override

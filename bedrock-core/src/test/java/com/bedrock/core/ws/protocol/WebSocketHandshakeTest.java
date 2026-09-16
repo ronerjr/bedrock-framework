@@ -204,4 +204,31 @@ class WebSocketHandshakeTest {
         assertTrue(response.endsWith("\r\n\r\n"),
                 "Response must terminate with double CRLF (empty line)");
     }
+
+    @Test
+    @DisplayName("Generate HTTP 101 response with Sec-WebSocket-Protocol header")
+    void shouldIncludeSubprotocolInHandshakeResponse() {
+        String acceptKey = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=";
+        byte[] responseBytes = WebSocketHandshake.createHandshakeResponse(acceptKey, "bedrock.chat.v1");
+        String response = new String(responseBytes, StandardCharsets.US_ASCII);
+
+        assertTrue(response.contains("Sec-WebSocket-Protocol: bedrock.chat.v1\r\n"),
+                "Response must include negotiated subprotocol");
+    }
+
+    @Test
+    @DisplayName("Parse URL query parameters accurately")
+    void shouldParseUrlQueryParams() {
+        var params = WebSocketHandshake.parseQueryParams("/chat?nick=Alice&room=general&encoded=Hello%20World");
+        assertEquals(3, params.size());
+        assertEquals("Alice", params.get("nick"));
+        assertEquals("general", params.get("room"));
+        assertEquals("Hello World", params.get("encoded"));
+
+        var emptyParams = WebSocketHandshake.parseQueryParams("/chat");
+        assertTrue(emptyParams.isEmpty());
+
+        var emptyQuery = WebSocketHandshake.parseQueryParams("/chat?");
+        assertTrue(emptyQuery.isEmpty());
+    }
 }

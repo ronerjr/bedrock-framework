@@ -209,12 +209,80 @@ public final class WebSocketHandshake {
      * @return Byte array containing the complete HTTP 101 response terminated with {@code \r\n\r\n}.
      */
     public static byte[] createHandshakeResponse(String acceptKey) {
-        String response = "HTTP/1.1 101 Switching Protocols" + CRLF +
-                "Upgrade: websocket" + CRLF +
-                "Connection: Upgrade" + CRLF +
-                "Sec-WebSocket-Accept: " + acceptKey + CRLF +
-                CRLF;
-        return response.getBytes(StandardCharsets.US_ASCII);
+        return createHandshakeResponse(acceptKey, null);
+    }
+
+    /**
+     * Generates the compliant {@code HTTP/1.1 101 Switching Protocols} response byte sequence,
+     * optionally including the {@code Sec-WebSocket-Protocol} negotiation header.
+     *
+     * @param acceptKey   The computed {@code Sec-WebSocket-Accept} value.
+     * @param subprotocol The negotiated subprotocol, or null if none negotiated.
+     * @return Byte array containing the complete HTTP 101 response terminated with {@code \r\n\r\n}.
+     */
+    public static byte[] createHandshakeResponse(String acceptKey, String subprotocol) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("HTTP/1.1 101 Switching Protocols").append(CRLF)
+          .append("Upgrade: websocket").append(CRLF)
+          .append("Connection: Upgrade").append(CRLF)
+          .append("Sec-WebSocket-Accept: ").append(acceptKey).append(CRLF);
+        if (subprotocol != null && !subprotocol.isBlank()) {
+            sb.append("Sec-WebSocket-Protocol: ").append(subprotocol.trim()).append(CRLF);
+        }
+        sb.append(CRLF);
+        return sb.toString().getBytes(StandardCharsets.US_ASCII);
+    }
+
+    /**
+     * Parses query parameters from a raw URI string (e.g. "/chat?nick=Alice&room=general").
+     *
+     * @param rawUri Raw request URI.
+     * @return Immutable Map of query parameter names to values (URL-decoded).
+     */
+    public static Map<String, String> parseQueryParams(String rawUri) {
+        if (rawUri == null) {
+            return Collections.emptyMap();
+        }
+        int queryIdx = rawUri.indexOf('?');
+        if (queryIdx < 0 || queryIdx >= rawUri.length() - 1) {
+            return Collections.emptyMap();
+        }
+        String queryString = rawUri.substring(queryIdx + 1);
+        int fragmentIdx = queryString.indexOf('#');
+        if (fragmentIdx >= 0) {
+            queryString = queryString.substring(0, fragmentIdx);
+        }
+        if (queryString.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, String> params = new java.util.LinkedHashMap<>();
+        String[] pairs = queryString.split("&");
+        for (String pair : pairs) {
+            if (pair.isEmpty()) continue;
+            int eqIdx = pair.indexOf('=');
+            String key;
+            String val;
+            if (eqIdx >= 0) {
+                key = urlDecode(pair.substring(0, eqIdx));
+                val = urlDecode(pair.substring(eqIdx + 1));
+            } else {
+                key = urlDecode(pair);
+                val = "";
+            }
+            if (!key.isEmpty()) {
+                params.put(key, val);
+            }
+        }
+        return Collections.unmodifiableMap(params);
+    }
+
+    private static String urlDecode(String s) {
+        try {
+            return java.net.URLDecoder.decode(s, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return s;
+        }
     }
 
     /**
@@ -432,11 +500,13 @@ public final class WebSocketHandshake {
         byte[] responseBytes = createHandshakeResponse(acceptKey);
 
         String cleanPath = extractPath(httpHeaders);
+        Map<String, String> queryParams = parseQueryParams(rawPath);
 
         return new HandshakeParseResult(
                 true, 101, method, cleanPath, version,
                 Collections.unmodifiableMap(headers),
-                clientKey.trim(), acceptKey, responseBytes, null
+                clientKey.trim(), acceptKey, responseBytes, null,
+                rawPath, queryParams
         );
     }
 
@@ -524,8 +594,21 @@ public final class WebSocketHandshake {
             String key,
             String acceptKey,
             byte[] responseBytes,
-            String errorMessage
+            String errorMessage,
+            String rawUri,
+            Map<String, String> queryParams
     ) {
+        /**
+         * Backward-compatible constructor without rawUri and queryParams.
+         */
+        public HandshakeParseResult(boolean valid, int statusCode, String method, String path,
+                                    String httpVersion, Map<String, String> headers,
+                                    String key, String acceptKey, byte[] responseBytes,
+                                    String errorMessage) {
+            this(valid, statusCode, method, path, httpVersion, headers, key, acceptKey, responseBytes, errorMessage,
+                    path, Collections.emptyMap());
+        }
+
         /**
          * Returns true if the handshake was successfully negotiated with HTTP 101 Switching Protocols.
          */
@@ -540,6 +623,13 @@ public final class WebSocketHandshake {
          */
         public boolean isValid() {
             return valid;
+        }
+
+        /**
+         * Returns the client requested subprotocols header (Sec-WebSocket-Protocol), or null if absent.
+         */
+        public String requestedSubprotocols() {
+            return headers != null ? headers.get("Sec-WebSocket-Protocol") : null;
         }
     }
 }

@@ -53,6 +53,23 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 
 ---
 
+## ✅ Versão 2.1 - *Polimento Arquitetural & Robustez de Conexão* (Concluído)
+*Foco: Auditoria do Comitê de Avaliação Arquitetural, robustez de ciclo de vida e blindagem contra DoS em WebSockets.*
+
+- [x] **Ciclo de Vida Determinístico no IoC (`@BedrockInit` e `@BedrockDestroy`):**
+  - Execução de inicialização pós-injeção de dependências em ordem topológica.
+  - Teardown graceful no shutdown da aplicação (`app.stop()`) em **ordem topológica reversa**, garantindo que dependentes sejam finalizados antes de suas dependências (Bloch, *Effective Java*, Item 8).
+- [x] **Subprotocolos & Parâmetros de Query em WebSockets:**
+  - Negociação formal de subprotocolo via cabeçalho `Sec-WebSocket-Protocol` conforme RFC 6455 §1.9.
+  - Extração e decodificação de query parameters na URL do handshake (`/chat?nick=Alice`), disponíveis diretamente na sessão (`session.getQueryParam("nick")`).
+- [x] **Keep-Alive & Proteção contra DoS em Frames:**
+  - Suporte a heartbeat periódico com frames `Ping` (Opcode 0x9) em Virtual Thread dedicada (`enableHeartbeat(...)`).
+  - Limite configurável de payload (`maxPayloadSize`, padrão 1 MB) encerrando com código RFC 6455 `1009 (Message Too Big)` para prevenir exaustão de memória na JVM.
+- [x] **Comitê de Avaliação Arquitetural Formalizado:**
+  - Carta de fundação em `docs/ARCHITECTURAL_COMMITTEE.md` e primeiro ADR em `docs/adr/0001-websockets-rfc6455-nio-virtual-threads.md`.
+
+---
+
 ## 🛡️ Versão 3.0 - *Segurança Prática*
 *Foco: Proteger rotas e autenticar usuários sem a complexidade do Spring Security.*
 

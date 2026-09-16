@@ -64,7 +64,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see OnError
  * @see BedrockWebSocketSession
  */
-@BedrockSocket("/chat")
+@BedrockSocket(path = "/chat", subprotocols = {"bedrock.chat.v1"})
 public class ChatWebSocket {
 
     private static final String LOG_TAG = "CHAT-WS";
@@ -87,19 +87,26 @@ public class ChatWebSocket {
     @OnOpen
     public void onOpen(BedrockWebSocketSession session) {
         sessions.put(session.getId(), session);
-        String shortId = getShortId(session.getId());
-        BedrockLogger.info(LOG_TAG, "Client connected: " + shortId + " [Total active: " + sessions.size() + "]");
+
+        // Check if client provided nickname in URL query parameter (e.g., /chat?nick=Alice)
+        String nickParam = session.getQueryParam("nick");
+        if (nickParam != null && !nickParam.isBlank()) {
+            session.setAttribute("username", nickParam.trim());
+        }
+
+        String displayName = getDisplayName(session);
+        BedrockLogger.info(LOG_TAG, "Client connected: " + displayName + " [Total active: " + sessions.size() + "]");
 
         // 1. Send personalized welcome greeting to the connecting user
         try {
-            session.send("[System] Welcome to Bedrock Real-Time Chat! Connected as User " + shortId + ".");
+            session.send("[System] Welcome to Bedrock Real-Time Chat! Connected as " + displayName + ".");
         } catch (Exception e) {
             BedrockLogger.warn(LOG_TAG, "Failed to send welcome greeting to session " + session.getId() + ": " + e.getMessage());
         }
 
         // 2. Broadcast join notification to all connected clients
         try {
-            broadcast("[System] User " + shortId + " joined. Total users: " + sessions.size());
+            broadcast("[System] " + displayName + " joined. Total users: " + sessions.size());
         } catch (Exception e) {
             BedrockLogger.warn(LOG_TAG, "Failed to broadcast join announcement: " + e.getMessage());
         }

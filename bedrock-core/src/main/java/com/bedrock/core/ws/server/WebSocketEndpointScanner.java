@@ -163,14 +163,18 @@ public final class WebSocketEndpointScanner {
             current = current.getSuperclass();
         }
 
+        BedrockSocket annotation = clazz.getAnnotation(BedrockSocket.class);
+        String[] subprotocols = annotation != null ? annotation.subprotocols() : new String[0];
+
         WebSocketEndpointBinding.ReflectiveEndpointBinding binding =
-                WebSocketEndpointBinding.reflective(targetInstance, onOpen, onMessage, onClose, onError);
+                WebSocketEndpointBinding.reflective(targetInstance, onOpen, onMessage, onClose, onError, subprotocols);
 
         BedrockLogger.info("WS-SCANNER", "Scanned WebSocket endpoint '" + clazz.getSimpleName() + "' -> " + path +
                 " [onOpen=" + (onOpen != null ? onOpen.getName() : "none") +
                 ", onMessage=" + (onMessage != null ? onMessage.getName() : "none") +
                 ", onClose=" + (onClose != null ? onClose.getName() : "none") +
-                ", onError=" + (onError != null ? onError.getName() : "none") + "]");
+                ", onError=" + (onError != null ? onError.getName() : "none") +
+                ", subprotocols=" + Arrays.toString(subprotocols) + "]");
 
         return new ScannedEndpoint(path, targetInstance, onOpen, onMessage, onClose, onError, binding);
     }
