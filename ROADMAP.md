@@ -43,19 +43,13 @@ Nossa trilha é desenhada para acompanhar a curva real de aprendizado de um dese
 
 ---
 
-## ✅ Versão 2.0 - *Comunicação em Tempo Real (WebSockets)* (Concluído)
-*Foco: Entender como o WhatsApp Web e chats funcionam por baixo dos panos.*
+## ✅ Versão 2.0 - *Comunicação em Tempo Real & Polimento Arquitetural* (Concluído)
+*Foco: Entender como o WhatsApp Web e chats funcionam por baixo dos panos, aliado à robustez do Comitê de Avaliação Arquitetural.*
 
-- [x] **Motor WebSockets (RFC 6455) do Zero:** Descer o nível para o `ServerSocketChannel` do Java NIO para manipular o Handshake TCP e o mascaramento de bits (Framing) dos WebSockets.
+- [x] **Motor WebSockets (RFC 6455) do Zero:** Descer o nível para o `ServerSocketChannel` do Java NIO para manipular o Handshake TCP e o mascaramento de bits (Framing) dos WebSockets com zero dependências externas.
   - *Conceito Ensinado:* Protocolos de Rede TCP/IP, Handshake HTTP 101 Switching Protocols e manipulação de fluxos binários.
 - [x] **Anotação de Real-Time (`@BedrockSocket`):** Criar canais bidirecionais persistentes sobre Virtual Threads com consumo mínimo de memória.
   - *Conceito Ensinado:* Concorrência leve com Project Loom para conexões de longa duração.
-
----
-
-## ✅ Versão 2.1 - *Polimento Arquitetural & Robustez de Conexão* (Concluído)
-*Foco: Auditoria do Comitê de Avaliação Arquitetural, robustez de ciclo de vida e blindagem contra DoS em WebSockets.*
-
 - [x] **Ciclo de Vida Determinístico no IoC (`@BedrockInit` e `@BedrockDestroy`):**
   - Execução de inicialização pós-injeção de dependências em ordem topológica.
   - Teardown graceful no shutdown da aplicação (`app.stop()`) em **ordem topológica reversa**, garantindo que dependentes sejam finalizados antes de suas dependências (Bloch, *Effective Java*, Item 8).
